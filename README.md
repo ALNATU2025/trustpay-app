@@ -32,6 +32,9 @@ Inside the app (`lib/screens/flows/`), each flow is opened from Home or Services
 | Cards | your cards, create virtual card, card ready | Services: Virtual card, Physical card |
 | Transactions | history (search and filters), receipt | Home: See all |
 | POS | store terminal, settlement, request, review, submitted | POS tab |
+| Account | profile card, personal details, security & PIN, notifications | Account tab, menu |
+| Help & support | FAQ search, live chat, call / email, send a message | Account tab, menu |
+| Admin | dashboard, users, approvals | Account tab (staff), menu |
 
 ## Look and feel
 
@@ -57,9 +60,16 @@ Inside the app (`lib/screens/flows/`), each flow is opened from Home or Services
   where to call your API (sign up, OTP, identity check, login, Face ID).
 - The "Illustrative data · All amounts in NGN" lines come from the mockups.
   Set `kShowIllustrativeNote = false` in `lib/widgets/common.dart` to remove them.
-- The POS tab hub (terminal card, next settlement, request button) and the Profile
-  tab were not in the exported screens. The POS hub only links the POS screens,
-  and Profile is a "Coming soon" placeholder.
+- The POS tab hub (terminal card, next settlement, request button) was not in the
+  exported screens. The POS hub only links the POS screens.
+- Account, Help & support and the Admin console are new and not from Figma. Their
+  data is sample data. The support phone and email in `sample_data.dart` are
+  placeholders.
+- The menu button on Home, Services, POS and Account opens the side menu (Home,
+  Services, Account, Transactions, POS, Help & support, Admin console, Log out).
+- `kIsAdmin` in `lib/data/sample_data.dart` shows the Admin console. Set it from
+  your login response, and make your server check the staff role on every admin
+  request. Hiding the menu item does not protect the data.
 - Send money (to a TrustPay user) uses the bank transfer screens, and physical
   cards and TV / internet bills have no designs yet, so they show "coming soon".
 - Balances after each payment are calculated from one sample balance

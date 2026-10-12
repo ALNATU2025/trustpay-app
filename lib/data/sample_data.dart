@@ -8,6 +8,17 @@ const String kAccountName = 'Ada Okafor';
 const String kAccountNumber = '0123454821';
 const String kPhone = '0803 456 7890';
 const String kBusinessName = 'Ada Stores';
+const String kEmail = 'ada.okafor@example.com';
+const String kTier = 'Tier 2 · Verified';
+
+/// Shows the Admin console in the menu. TODO: set this from the role your API
+/// returns after login. The server must also check the role on every admin
+/// request; hiding the menu item is not security.
+const bool kIsAdmin = true;
+
+/// Placeholder support details. Replace with your real ones.
+const String kSupportPhone = '0700 000 0000';
+const String kSupportEmail = 'support@trustpay.example';
 
 const kBanks = ['GTBank', 'Access Bank', 'Zenith Bank', 'UBA', 'First Bank'];
 const kNetworks = ['MTN', 'Airtel', 'Glo', '9mobile'];

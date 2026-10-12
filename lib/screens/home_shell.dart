@@ -2,6 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../theme/app_theme.dart';
+import '../utils/nav.dart';
+import '../utils/session.dart';
+import '../widgets/app_drawer.dart';
+import 'account/profile_tab.dart';
+import 'admin/admin_screens.dart';
+import 'support/support_screen.dart';
 import 'flows/flows.dart';
 import 'home_tab.dart';
 import 'services_tab.dart';
@@ -16,13 +22,50 @@ class HomeShell extends StatefulWidget {
 
 class _HomeShellState extends State<HomeShell> {
   int _tab = 0;
+  final _scaffoldKey = GlobalKey<ScaffoldState>();
 
   void _go(int i) => setState(() => _tab = i);
 
+  /// Runs after the drawer has closed.
+  void _onDrawer(DrawerDest dest) {
+    switch (dest) {
+      case DrawerDest.home:
+        _go(0);
+      case DrawerDest.services:
+        _go(1);
+      case DrawerDest.pos:
+        _go(2);
+      case DrawerDest.account:
+        _go(3);
+      case DrawerDest.transactions:
+        openScreen(context, const TransactionHistoryScreen());
+      case DrawerDest.support:
+        openScreen(context, const SupportScreen());
+      case DrawerDest.admin:
+        openScreen(context, const AdminDashboardScreen());
+      case DrawerDest.logout:
+        confirmLogout(context);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    // Back on Services, POS or Account returns to Home before leaving the app.
+    return PopScope(
+      canPop: _tab == 0,
+      onPopInvoked: (didPop) {
+        if (didPop) return;
+        final scaffold = _scaffoldKey.currentState;
+        if (scaffold != null && scaffold.isDrawerOpen) {
+          scaffold.closeDrawer();
+        } else {
+          _go(0);
+        }
+      },
+      child: Scaffold(
+      key: _scaffoldKey,
       backgroundColor: TpColors.background,
+      drawer: AppDrawer(currentTab: _tab, onSelect: _onDrawer),
       body: SafeArea(
         bottom: false,
         child: IndexedStack(
@@ -31,11 +74,12 @@ class _HomeShellState extends State<HomeShell> {
             HomeTab(onOpenTab: _go),
             ServicesTab(onOpenTab: _go),
             const PosTab(),
-            const _ComingSoon(title: 'Profile', icon: Icons.person_outline),
+            ProfileTab(onOpenTab: _go),
           ],
         ),
       ),
       bottomNavigationBar: _BottomBar(index: _tab, onTap: _go),
+      ),
     );
   }
 }
@@ -50,7 +94,7 @@ class _BottomBar extends StatelessWidget {
     (Icons.home_outlined, Icons.home_rounded, 'Home'),
     (Icons.grid_view_outlined, Icons.grid_view_rounded, 'Services'),
     (Icons.desktop_windows_outlined, Icons.desktop_windows_rounded, 'POS'),
-    (Icons.person_outline, Icons.person_rounded, 'Profile'),
+    (Icons.person_outline, Icons.person_rounded, 'Account'),
   ];
 
   @override
@@ -150,30 +194,6 @@ class _NavItem extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-/// Placeholder for tabs that are not in the Figma file yet.
-class _ComingSoon extends StatelessWidget {
-  const _ComingSoon({required this.title, required this.icon});
-
-  final String title;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 48, color: TpColors.primary),
-          const SizedBox(height: 12),
-          Text(title, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
-          const SizedBox(height: 6),
-          const Text('Coming soon', style: TextStyle(color: TpColors.muted)),
-        ],
       ),
     );
   }
