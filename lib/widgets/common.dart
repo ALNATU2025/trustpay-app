@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../theme/app_theme.dart';
+import 'motion.dart';
 
 /// The small "Illustrative data · All amounts in NGN" line from the designs.
 /// Set to false before release.
@@ -39,28 +40,54 @@ class PrimaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: 52,
-      child: FilledButton(
-        style: FilledButton.styleFrom(
-          backgroundColor: TpColors.primary,
-          disabledBackgroundColor: TpColors.primary.withOpacity(0.35),
-          foregroundColor: Colors.white,
-          disabledForegroundColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-        ),
-        onPressed: onPressed,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(label),
-            if (trailingIcon != null) ...[
-              const SizedBox(width: 10),
-              Icon(trailingIcon, size: 20),
-            ],
-          ],
+    final enabled = onPressed != null;
+    final radius = BorderRadius.circular(16);
+    return PressScale(
+      enabled: enabled,
+      scale: 0.97,
+      child: AnimatedOpacity(
+        opacity: enabled ? 1 : 0.4,
+        duration: const Duration(milliseconds: 200),
+        child: Container(
+          width: double.infinity,
+          height: 54,
+          decoration: BoxDecoration(
+            gradient: TpGradients.primary,
+            borderRadius: radius,
+            boxShadow: enabled ? TpShadows.glow : null,
+          ),
+          child: Material(
+            color: Colors.transparent,
+            borderRadius: radius,
+            child: InkWell(
+              borderRadius: radius,
+              onTap: enabled
+                  ? () {
+                      HapticFeedback.lightImpact();
+                      onPressed!();
+                    }
+                  : null,
+              child: Center(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      label,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                    if (trailingIcon != null) ...[
+                      const SizedBox(width: 10),
+                      Icon(trailingIcon, size: 20, color: Colors.white),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -75,18 +102,30 @@ class SecondaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: 44,
-      child: TextButton(
-        style: TextButton.styleFrom(
-          backgroundColor: Colors.white,
-          foregroundColor: TpColors.primary,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-          textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+    return PressScale(
+      enabled: onPressed != null,
+      scale: 0.97,
+      child: SizedBox(
+        width: double.infinity,
+        height: 46,
+        child: TextButton(
+          style: TextButton.styleFrom(
+            backgroundColor: Colors.white,
+            foregroundColor: TpColors.primary,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+              side: const BorderSide(color: TpColors.border),
+            ),
+            textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+          ),
+          onPressed: onPressed == null
+              ? null
+              : () {
+                  HapticFeedback.selectionClick();
+                  onPressed!();
+                },
+          child: Text(label),
         ),
-        onPressed: onPressed,
-        child: Text(label),
       ),
     );
   }
@@ -146,7 +185,11 @@ class IconBox extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: TpColors.tint,
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFF2F7FF), Color(0xFFDCE8FD)],
+        ),
         borderRadius: BorderRadius.circular(14),
       ),
       child: Icon(icon, color: color, size: size * 0.5),
@@ -224,16 +267,21 @@ class FlowHeader extends StatelessWidget {
             child: Align(
               alignment: Alignment.centerLeft,
               child: showBack
-                  ? Material(
-                      color: Colors.white,
-                      shape: const CircleBorder(),
-                      child: InkWell(
-                        customBorder: const CircleBorder(),
-                        onTap: onBack ?? () => Navigator.maybePop(context),
-                        child: const SizedBox(
-                          width: 40,
-                          height: 40,
-                          child: Icon(Icons.chevron_left, color: TpColors.navy),
+                  ? PressScale(
+                      scale: 0.9,
+                      child: Material(
+                        color: Colors.white,
+                        elevation: 1.5,
+                        shadowColor: const Color(0x2214233F),
+                        shape: const CircleBorder(),
+                        child: InkWell(
+                          customBorder: const CircleBorder(),
+                          onTap: onBack ?? () => Navigator.maybePop(context),
+                          child: const SizedBox(
+                            width: 40,
+                            height: 40,
+                            child: Icon(Icons.chevron_left, color: TpColors.navy),
+                          ),
                         ),
                       ),
                     )

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 import 'common.dart';
+import 'motion.dart';
 
 /// White card of "label ........ value" rows.
 class DetailsCard extends StatelessWidget {
@@ -17,6 +18,7 @@ class DetailsCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(22),
+        boxShadow: TpShadows.card,
       ),
       child: Column(
         children: [
@@ -77,8 +79,10 @@ class AmountBanner extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: background,
+        color: background == TpColors.primary ? null : background,
+        gradient: background == TpColors.primary ? TpGradients.primary : null,
         borderRadius: BorderRadius.circular(24),
+        boxShadow: background == TpColors.primary ? TpShadows.glow : null,
       ),
       child: Column(
         crossAxisAlignment: center ? CrossAxisAlignment.center : CrossAxisAlignment.start,
@@ -108,14 +112,7 @@ class SuccessBadge extends StatelessWidget {
   const SuccessBadge({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 68,
-      height: 68,
-      decoration: const BoxDecoration(color: TpColors.greenTint, shape: BoxShape.circle),
-      child: const Icon(Icons.check, color: TpColors.green, size: 34),
-    );
-  }
+  Widget build(BuildContext context) => const AnimatedCheck(size: 72);
 }
 
 /// Big centred result block: badge, headline and a muted line.

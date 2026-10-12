@@ -4,6 +4,7 @@ import '../theme/app_theme.dart';
 import '../widgets/account_header.dart';
 import '../utils/nav.dart';
 import '../widgets/common.dart';
+import '../widgets/motion.dart';
 import 'flows/flows.dart';
 
 class _Service {
@@ -112,7 +113,13 @@ class _ServicesTabState extends State<ServicesTab> {
             crossAxisSpacing: 12,
             childAspectRatio: 1.45,
             children: [
-              for (final s in items) _ServiceCard(service: s, onTap: () => _open(s)),
+              for (var i = 0; i < items.length; i++)
+                FadeSlideIn(
+                  key: ValueKey(items[i].title),
+                  delay: Duration(milliseconds: 40 * i),
+                  offset: 14,
+                  child: _ServiceCard(service: items[i], onTap: () => _open(items[i])),
+                ),
             ],
           ),
         const SizedBox(height: 16),
@@ -160,38 +167,47 @@ class _ServiceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(20),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(20),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              IconBox(icon: service.icon, size: 40),
-              Column(
+    return PressScale(
+      scale: 0.95,
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: TpShadows.card,
+        ),
+        child: Material(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(20),
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    service.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    service.subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 13, color: TpColors.muted),
+                  IconBox(icon: service.icon, size: 40),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        service.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        service.subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 13, color: TpColors.muted),
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ],
+            ),
           ),
         ),
       ),

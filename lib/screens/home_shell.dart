@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../theme/app_theme.dart';
 import 'flows/flows.dart';
@@ -46,52 +47,108 @@ class _BottomBar extends StatelessWidget {
   final ValueChanged<int> onTap;
 
   static const _items = [
-    (Icons.home_outlined, 'Home'),
-    (Icons.grid_view_outlined, 'Services'),
-    (Icons.desktop_windows_outlined, 'POS'),
-    (Icons.person_outline, 'Profile'),
+    (Icons.home_outlined, Icons.home_rounded, 'Home'),
+    (Icons.grid_view_outlined, Icons.grid_view_rounded, 'Services'),
+    (Icons.desktop_windows_outlined, Icons.desktop_windows_rounded, 'POS'),
+    (Icons.person_outline, Icons.person_rounded, 'Profile'),
   ];
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: Colors.white,
-        border: Border(top: BorderSide(color: TpColors.border)),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF14233F).withOpacity(0.08),
+            blurRadius: 24,
+            offset: const Offset(0, -6),
+          ),
+        ],
       ),
       child: SafeArea(
         top: false,
         child: SizedBox(
-          height: 64,
+          height: 68,
           child: Row(
             children: [
               for (var i = 0; i < _items.length; i++)
                 Expanded(
-                  child: InkWell(
-                    onTap: () => onTap(i),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          _items[i].$1,
-                          size: 26,
-                          color: i == index ? TpColors.primary : TpColors.muted,
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          _items[i].$2,
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: i == index ? FontWeight.w700 : FontWeight.w500,
-                            color: i == index ? TpColors.primary : TpColors.muted,
-                          ),
-                        ),
-                      ],
-                    ),
+                  child: _NavItem(
+                    outlined: _items[i].$1,
+                    filled: _items[i].$2,
+                    label: _items[i].$3,
+                    selected: i == index,
+                    onTap: () {
+                      if (i != index) HapticFeedback.selectionClick();
+                      onTap(i);
+                    },
                   ),
                 ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NavItem extends StatelessWidget {
+  const _NavItem({
+    required this.outlined,
+    required this.filled,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final IconData outlined;
+  final IconData filled;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = selected ? TpColors.primary : TpColors.muted;
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: label,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 260),
+              curve: Curves.easeOutCubic,
+              width: selected ? 60 : 36,
+              height: 32,
+              decoration: BoxDecoration(
+                color: selected ? TpColors.tint : Colors.transparent,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: AnimatedScale(
+                scale: selected ? 1.12 : 1,
+                duration: const Duration(milliseconds: 260),
+                curve: Curves.easeOutBack,
+                child: Icon(selected ? filled : outlined, size: 24, color: color),
+              ),
+            ),
+            const SizedBox(height: 3),
+            AnimatedDefaultTextStyle(
+              duration: const Duration(milliseconds: 200),
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                color: color,
+              ),
+              child: Text(label),
+            ),
+          ],
         ),
       ),
     );

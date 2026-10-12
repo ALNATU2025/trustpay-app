@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
+import '../widgets/motion.dart';
 
 /// Screen 6: "Your money. More possibilities." with the hero photo.
 class WelcomeScreen extends StatelessWidget {
@@ -39,21 +40,34 @@ class WelcomeScreen extends StatelessWidget {
                     const SizedBox(height: 16),
                     const TpLogo(height: 64),
                     const SizedBox(height: 16),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(24),
-                      child: AspectRatio(
-                        aspectRatio: 708 / 400,
-                        child: Image.asset(
-                          'assets/images/welcome_hero.jpg',
-                          fit: BoxFit.cover,
-                          semanticLabel: 'A customer using TrustPay on her phone in a café',
+                    FadeSlideIn(
+                      delay: const Duration(milliseconds: 100),
+                      offset: 24,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(24),
+                          boxShadow: TpShadows.card,
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(24),
+                          child: AspectRatio(
+                            aspectRatio: 708 / 400,
+                            child: Image.asset(
+                              'assets/images/welcome_hero.jpg',
+                              fit: BoxFit.cover,
+                              semanticLabel: 'A customer using TrustPay on her phone in a café',
+                            ),
+                          ),
                         ),
                       ),
                     ),
                     const SizedBox(height: 24),
-                    const Text(
-                      'Your money.\nMore possibilities.',
-                      style: TextStyle(fontSize: 32, fontWeight: FontWeight.w800, height: 1.15),
+                    const FadeSlideIn(
+                      delay: Duration(milliseconds: 250),
+                      child: Text(
+                        'Your money.\nMore possibilities.',
+                        style: TextStyle(fontSize: 32, fontWeight: FontWeight.w800, height: 1.15),
+                      ),
                     ),
                     const SizedBox(height: 16),
                     const Text(

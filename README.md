@@ -33,6 +33,15 @@ Inside the app (`lib/screens/flows/`), each flow is opened from Home or Services
 | Transactions | history (search and filters), receipt | Home: See all |
 | POS | store terminal, settlement, request, review, submitted | POS tab |
 
+## Look and feel
+
+- `lib/widgets/motion.dart` has the shared animations: `PressScale` (buttons shrink
+  slightly when pressed), `FadeSlideIn` (staggered entrances), `CountUpText`
+  (balance counts up) and `AnimatedCheck` (success tick).
+- Every page change uses `TpPageTransitionsBuilder` (fade plus slide), set in
+  `lib/theme/app_theme.dart` together with the brand gradients and shadows.
+- Primary buttons are gradient with a soft glow and a light haptic tap.
+
 ## Project layout
 
 - `lib/theme/app_theme.dart` colours and font (Inter via `google_fonts`)

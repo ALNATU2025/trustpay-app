@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
+import '../widgets/motion.dart';
 
 /// Screen 1: logo and "Powered by" line on a light grey background.
 class SplashScreen extends StatefulWidget {
@@ -38,15 +39,30 @@ class _SplashScreenState extends State<SplashScreen> {
       body: SafeArea(
         child: Stack(
           children: [
-            Center(child: TpLogo(width: width * 0.5)),
+            Center(
+              child: TweenAnimationBuilder<double>(
+                tween: Tween<double>(begin: 0.8, end: 1),
+                duration: const Duration(milliseconds: 900),
+                curve: Curves.easeOutBack,
+                builder: (context, scale, child) => Opacity(
+                  opacity: ((scale - 0.8) / 0.2).clamp(0.0, 1.0),
+                  child: Transform.scale(scale: scale, child: child),
+                ),
+                child: TpLogo(width: width * 0.5),
+              ),
+            ),
             const Positioned(
               left: 0,
               right: 0,
               bottom: 24,
-              child: Center(
-                child: Text(
-                  'Powered by Easy Trust Corporation',
-                  style: TextStyle(fontSize: 14, color: TpColors.muted),
+              child: FadeSlideIn(
+                delay: Duration(milliseconds: 700),
+                offset: 8,
+                child: Center(
+                  child: Text(
+                    'Powered by Easy Trust Corporation',
+                    style: TextStyle(fontSize: 14, color: TpColors.muted),
+                  ),
                 ),
               ),
             ),
@@ -98,21 +114,30 @@ class _IntroScreenState extends State<IntroScreen> {
             child: Column(
               children: [
                 const Spacer(flex: 5),
-                TpLogo(width: width * 0.42),
+                FadeSlideIn(child: TpLogo(width: width * 0.42)),
                 const SizedBox(height: 36),
-                const Text(
-                  'Banking you can count on.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800),
+                const FadeSlideIn(
+                  delay: Duration(milliseconds: 150),
+                  child: Text(
+                    'Banking you can count on.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800),
+                  ),
                 ),
                 const SizedBox(height: 14),
-                const Text(
-                  'Everyday money. More possibilities.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 16, color: TpColors.muted),
+                const FadeSlideIn(
+                  delay: Duration(milliseconds: 300),
+                  child: Text(
+                    'Everyday money. More possibilities.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 16, color: TpColors.muted),
+                  ),
                 ),
                 const SizedBox(height: 24),
-                const PageDots(count: 3, index: 0),
+                const FadeSlideIn(
+                  delay: Duration(milliseconds: 450),
+                  child: PageDots(count: 3, index: 0),
+                ),
                 const Spacer(flex: 6),
                 const Text(
                   'Secure by design. Built around you.',

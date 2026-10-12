@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 import 'common.dart';
+import 'motion.dart';
 
 /// Shared layout for the "ENTRY & SETUP" style screens: header, eyebrow +
 /// counter, title, subtitle, scrollable body, and the two bottom buttons.
@@ -64,46 +65,60 @@ class StepScaffold extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            eyebrow,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: TpColors.primary,
-                            ),
-                          ),
-                          if (counter != null)
+                      FadeSlideIn(
+                        offset: 10,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
                             Text(
-                              counter!,
-                              style: const TextStyle(fontSize: 12, color: TpColors.muted),
+                              eyebrow,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.4,
+                                color: TpColors.primary,
+                              ),
                             ),
-                        ],
+                            if (counter != null)
+                              Text(
+                                counter!,
+                                style: const TextStyle(fontSize: 12, color: TpColors.muted),
+                              ),
+                          ],
+                        ),
                       ),
                       const SizedBox(height: 10),
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.w800,
-                          height: 1.15,
+                      FadeSlideIn(
+                        delay: const Duration(milliseconds: 60),
+                        child: Text(
+                          title,
+                          style: const TextStyle(
+                            fontSize: 26,
+                            fontWeight: FontWeight.w800,
+                            height: 1.15,
+                          ),
                         ),
                       ),
                       if (subtitle != null) ...[
                         const SizedBox(height: 8),
-                        Text(
-                          subtitle!,
-                          style: const TextStyle(
-                            fontSize: 15,
-                            height: 1.4,
-                            color: TpColors.muted,
+                        FadeSlideIn(
+                          delay: const Duration(milliseconds: 120),
+                          child: Text(
+                            subtitle!,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              height: 1.4,
+                              color: TpColors.muted,
+                            ),
                           ),
                         ),
                       ],
                       const SizedBox(height: 24),
-                      child,
+                      FadeSlideIn(
+                        delay: const Duration(milliseconds: 180),
+                        offset: 24,
+                        child: child,
+                      ),
                     ],
                   ),
                 ),
