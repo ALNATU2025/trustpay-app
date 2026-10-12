@@ -8,7 +8,10 @@ String? _required(String? v) => (v == null || v.trim().isEmpty) ? 'Required' : n
 
 /// Screen 7: step 1 of 4, basic details.
 class SignUpScreen extends StatefulWidget {
-  const SignUpScreen({super.key});
+  const SignUpScreen({super.key, this.onSwitch});
+
+  /// Called by "Log in". Inside [AuthPager] this swipes back to Login.
+  final VoidCallback? onSwitch;
 
   @override
   State<SignUpScreen> createState() => _SignUpScreenState();
@@ -65,7 +68,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
       primaryLabel: 'Create account',
       onPrimary: _submit,
       secondaryLabel: 'Already have an account? Log in',
-      onSecondary: () => Navigator.pushReplacementNamed(context, '/login'),
+      onSecondary: widget.onSwitch ?? () => Navigator.pushReplacementNamed(context, '/login'),
       child: Form(
         key: _form,
         child: Column(

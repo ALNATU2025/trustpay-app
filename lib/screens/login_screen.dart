@@ -6,7 +6,10 @@ import '../widgets/step_scaffold.dart';
 
 /// Screen 11: returning user login.
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  const LoginScreen({super.key, this.onSwitch});
+
+  /// Called by "Create account". Inside [AuthPager] this swipes to Sign up.
+  final VoidCallback? onSwitch;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -42,7 +45,7 @@ class _LoginScreenState extends State<LoginScreen> {
       primaryLabel: 'Secure login',
       onPrimary: _login,
       secondaryLabel: 'New to TrustPay? Create account',
-      onSecondary: () => Navigator.pushNamed(context, '/signup'),
+      onSecondary: widget.onSwitch ?? () => Navigator.pushNamed(context, '/signup'),
       child: Form(
         key: _form,
         child: Column(
