@@ -8,6 +8,7 @@ import '../../widgets/common.dart';
 import '../../widgets/menu_widgets.dart';
 import '../../widgets/step_scaffold.dart';
 import 'generic_flow.dart';
+import 'mobile_money_screens.dart';
 import 'transfer_screens.dart';
 
 /// Bottom sheet that asks where the money is going.
@@ -37,9 +38,18 @@ void showSendOptions(BuildContext context) {
               },
             ),
             MenuTile(
+              icon: Icons.phone_android_outlined,
+              title: 'To mobile money',
+              subtitle: 'Orange Money, Afrimoney, Qmoney',
+              onTap: () {
+                Navigator.pop(sheetContext);
+                openScreen(context, const MobileMoneyScreen(send: true));
+              },
+            ),
+            MenuTile(
               icon: Icons.account_balance_outlined,
               title: 'To a bank account',
-              subtitle: 'Any Nigerian bank',
+              subtitle: 'Any Sierra Leone bank',
               onTap: () {
                 Navigator.pop(sheetContext);
                 openScreen(context, const SendBankScreen());
@@ -90,7 +100,7 @@ class _SendToUserScreenState extends State<SendToUserScreen> {
     await Future<void>.delayed(const Duration(milliseconds: 500));
     if (!mounted || id != _lookupId) return;
     setState(() {
-      _name = 'Chidi Okafor';
+      _name = 'Mohamed Sesay';
       _verifying = false;
     });
   }
@@ -120,20 +130,20 @@ class _SendToUserScreenState extends State<SendToUserScreen> {
         rows: [
           ('To', name),
           ('TrustPay number', to),
-          ('Amount', formatNaira(amount)),
+          ('Amount', formatLeone(amount)),
           if (note.isNotEmpty) ('Note', note),
-          ('Balance after', formatNaira(kAccountBalance - amount)),
+          ('Balance after', formatLeone(kAccountBalance - amount)),
         ],
         successBuilder: (reference) => PaySuccessScreen(
           eyebrow: 'SEND MONEY · TRUSTPAY USER',
           counter: '03 / 03',
-          headline: '${formatNaira(amount)} sent',
+          headline: '${formatLeone(amount)} sent',
           detail: 'To $name',
-          notice: 'Balance ${formatNaira(kAccountBalance - amount)}',
+          notice: 'Balance ${formatLeone(kAccountBalance - amount)}',
           rows: [
             ('To', name),
-            ('Amount', formatNaira(amount)),
-            ('Fee', formatNaira(0)),
+            ('Amount', formatLeone(amount)),
+            ('Fee', formatLeone(0)),
             ('Reference', reference),
           ],
         ),
@@ -189,7 +199,7 @@ class _SendToUserScreenState extends State<SendToUserScreen> {
               label: 'Amount',
               controller: _amount,
               hint: '0.00',
-              prefixText: '₦',
+              prefixText: 'Le ',
               allowDecimal: true,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               onChanged: (_) => setState(() {}),
@@ -202,7 +212,7 @@ class _SendToUserScreenState extends State<SendToUserScreen> {
             ),
             const SizedBox(height: 8),
             AmountChips(
-              amounts: const [1000, 5000, 10000, 20000],
+              amounts: const [100, 500, 1000, 2000],
               onPick: (a) => setState(() => _amount.text = a.toStringAsFixed(0)),
             ),
             const SizedBox(height: 16),

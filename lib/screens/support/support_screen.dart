@@ -109,7 +109,7 @@ class _SupportScreenState extends State<SupportScreen> {
             width: double.infinity,
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              gradient: TpGradients.primary,
+              gradient: TpGradients.premium,
               borderRadius: BorderRadius.circular(24),
               boxShadow: TpShadows.glow,
             ),
@@ -403,7 +403,7 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
   final _controller = TextEditingController();
   final _scroll = ScrollController();
   final _messages = <_Msg>[
-    const _Msg('Hi Ada, I am the TrustPay assistant. How can I help today?', false),
+    const _Msg('Hi Aminata, I am the TrustPay assistant. How can I help today?', false),
   ];
   Timer? _reply;
 

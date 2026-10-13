@@ -30,7 +30,7 @@ class ReceiptScreen extends StatelessWidget {
         children: [
           AmountBanner(
             label: data.bannerLabel,
-            value: formatNaira(data.amount),
+            value: formatLeone(data.amount),
             background: TpColors.greenTint,
             labelColor: TpColors.green,
             valueColor: TpColors.navy,

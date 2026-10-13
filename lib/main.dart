@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import 'screens/account_ready_screen.dart';
@@ -22,6 +24,31 @@ class TrustPayApp extends StatelessWidget {
       title: 'TrustPay',
       debugShowCheckedModeBanner: false,
       theme: buildTheme(),
+      builder: (context, child) {
+        final media = MediaQuery.of(context);
+        // Keep layouts intact on every phone: a little smaller text on narrow
+        // screens, and the system text size limited to a comfortable range.
+        final narrow = media.size.width < 360 ? 0.92 : 1.0;
+        final system = media.textScaler.scale(1.0).clamp(0.9, 1.15).toDouble();
+        // On tablets and web, keep the app at phone width in the middle.
+        final width = math.min(media.size.width, 480.0);
+        return ColoredBox(
+          color: TpColors.background,
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 480),
+              child: MediaQuery(
+                data: media.copyWith(
+                  size: Size(width, media.size.height),
+                  textScaler: TextScaler.linear(system * narrow),
+                ),
+                child: child ?? const SizedBox.shrink(),
+              ),
+            ),
+          ),
+        );
+      },
       initialRoute: '/',
       routes: {
         '/': (_) => const SplashScreen(),

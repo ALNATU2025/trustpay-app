@@ -79,10 +79,10 @@ class _AccountReadyScreenState extends State<AccountReadyScreen> {
             ),
             child: Column(
               children: [
-                const _Row('Account name', 'Ada Okafor'),
+                const _Row('Account name', 'Aminata Kamara'),
                 const _Row('Account number', '0123454821'),
                 const _Row('Bank', 'TrustPay'),
-                _Row('Opening balance', formatNaira(0), last: true),
+                _Row('Opening balance', formatLeone(0), last: true),
               ],
             ),
           ),

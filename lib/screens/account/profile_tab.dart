@@ -9,6 +9,7 @@ import '../../widgets/account_header.dart';
 import '../../widgets/common.dart';
 import '../../widgets/menu_widgets.dart';
 import '../../widgets/motion.dart';
+import '../../widgets/premium.dart';
 import '../admin/admin_screens.dart';
 import '../flows/flows.dart';
 import '../support/support_screen.dart';
@@ -174,110 +175,87 @@ class _ProfileCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: TpGradients.primary,
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: TpShadows.glow,
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(28),
-        child: Stack(
-          children: [
-            Positioned(
-              right: -30,
-              top: -40,
-              child: Container(
-                width: 150,
-                height: 150,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white.withOpacity(0.08),
+    return PremiumPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Avatar(name: kAccountName, size: 64, light: true),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      kAccountName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Colors.white),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      kEmail,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 13, color: Colors.white70),
+                    ),
+                  ],
                 ),
               ),
+              const GoldChip(),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.16),
+              borderRadius: BorderRadius.circular(20),
             ),
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.verified, size: 16, color: Colors.white),
+                SizedBox(width: 6),
+                Text(kTier, style: TextStyle(fontSize: 12, color: Colors.white)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.fromLTRB(14, 6, 6, 6),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Row(
+              children: [
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Avatar(name: kAccountName, size: 64, light: true),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              kAccountName,
-                              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Colors.white),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              kEmail,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontSize: 13, color: Colors.white70),
-                            ),
-                          ],
-                        ),
+                      Text('Account number', style: TextStyle(fontSize: 12, color: TpColors.muted)),
+                      Text(
+                        kAccountNumber,
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, letterSpacing: 1),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.16),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.verified, size: 16, color: Colors.white),
-                        SizedBox(width: 6),
-                        Text(kTier, style: TextStyle(fontSize: 12, color: Colors.white)),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  Container(
-                    padding: const EdgeInsets.fromLTRB(14, 6, 6, 6),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Row(
-                      children: [
-                        const Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Account number', style: TextStyle(fontSize: 12, color: TpColors.muted)),
-                              Text(
-                                kAccountNumber,
-                                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, letterSpacing: 1),
-                              ),
-                            ],
-                          ),
-                        ),
-                        IconButton(
-                          tooltip: 'Copy account number',
-                          icon: const Icon(Icons.copy_rounded, color: TpColors.primary, size: 20),
-                          onPressed: () {
-                            Clipboard.setData(const ClipboardData(text: kAccountNumber));
-                            HapticFeedback.selectionClick();
-                            showMessage(context, 'Account number copied');
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+                ),
+                IconButton(
+                  tooltip: 'Copy account number',
+                  icon: const Icon(Icons.copy_rounded, color: TpColors.primary, size: 20),
+                  onPressed: () {
+                    Clipboard.setData(const ClipboardData(text: kAccountNumber));
+                    HapticFeedback.selectionClick();
+                    showMessage(context, 'Account number copied');
+                  },
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

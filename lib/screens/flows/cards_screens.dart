@@ -133,7 +133,7 @@ class _CardsScreenState extends State<CardsScreen> {
               const SizedBox(height: 16),
               SelectTile(
                 icon: Icons.credit_card_outlined,
-                title: 'Virtual naira card',
+                title: 'Virtual leone card',
                 subtitle: 'Instant issuance · Fund and freeze in the app',
                 onTap: () => setState(() => _tab = 0),
               ),
@@ -182,7 +182,7 @@ class _EmptyCards extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             virtual
-                ? 'Create a naira card for your online subscriptions and shopping.'
+                ? 'Create a leone card for your online subscriptions and shopping.'
                 : 'Request a physical card to pay in store and withdraw cash.',
             style: const TextStyle(fontSize: 15, height: 1.4, color: TpColors.muted),
           ),
@@ -201,9 +201,9 @@ class CreateCardScreen extends StatefulWidget {
 }
 
 class _CreateCardScreenState extends State<CreateCardScreen> {
-  static const double _issuanceFee = 1000;
+  static const double _issuanceFee = 50;
 
-  final _funding = TextEditingController(text: '5000');
+  final _funding = TextEditingController(text: '250');
   bool _accepted = false;
   String _pin = '';
 
@@ -236,10 +236,10 @@ class _CreateCardScreenState extends State<CreateCardScreen> {
       eyebrow: 'CARDS',
       counter: '02 / 03',
       title: 'Create your virtual card',
-      subtitle: 'Naira card · Cardholder: $kAccountName',
+      subtitle: 'Leone card · Cardholder: $kAccountName',
       headerLabel: 'Cancel',
       onHeaderAction: () => Navigator.maybePop(context),
-      primaryLabel: 'Confirm & pay ${formatNaira(_total)}',
+      primaryLabel: 'Confirm & pay ${formatLeone(_total)}',
       onPrimary: _valid ? _confirm : null,
       secondaryLabel: 'Back to cards',
       onSecondary: () => Navigator.maybePop(context),
@@ -250,7 +250,7 @@ class _CreateCardScreenState extends State<CreateCardScreen> {
             label: 'Initial card funding',
             controller: _funding,
             hint: '0.00',
-            prefixText: '₦',
+            prefixText: 'Le ',
             allowDecimal: true,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             onChanged: (_) => setState(() {}),
@@ -258,11 +258,11 @@ class _CreateCardScreenState extends State<CreateCardScreen> {
           const SizedBox(height: 16),
           DetailsCard(
             rows: [
-              ('Issuance fee', '${formatNaira(_issuanceFee)} · one-time'),
-              ('Initial funding', formatNaira(_amount)),
-              ('Monthly fee', formatNaira(0)),
-              ('Total debit now', formatNaira(_total)),
-              ('Account after', formatNaira(kAccountBalance - _total)),
+              ('Issuance fee', '${formatLeone(_issuanceFee)} · one-time'),
+              ('Initial funding', formatLeone(_amount)),
+              ('Monthly fee', formatLeone(0)),
+              ('Total debit now', formatLeone(_total)),
+              ('Account after', formatLeone(kAccountBalance - _total)),
             ],
           ),
           const SizedBox(height: 14),
@@ -297,7 +297,7 @@ class _CreateCardScreenState extends State<CreateCardScreen> {
           OtpInput(length: 4, obscure: true, onChanged: (v) => setState(() => _pin = v)),
           const SizedBox(height: 16),
           InfoBanner(
-            text: 'Fees are examples, not a live offer. ${formatNaira(_amount, decimals: 0)} '
+            text: 'Fees are examples, not a live offer. ${formatLeone(_amount, decimals: 0)} '
                 'will be available on your new card.',
           ),
         ],
@@ -372,7 +372,7 @@ class _CardReadyScreenState extends State<CardReadyScreen> {
           eyebrow: 'CARDS',
           counter: '03 / 03',
           title: 'Your card is ready',
-          subtitle: 'Virtual naira card · ${card.frozen ? 'Frozen' : 'Active'}',
+          subtitle: 'Virtual leone card · ${card.frozen ? 'Frozen' : 'Active'}',
           headerLabel: 'Done',
           onBack: () => goHome(context),
           onHeaderAction: () => goHome(context),
@@ -406,12 +406,12 @@ class _CardReadyScreenState extends State<CardReadyScreen> {
               const SizedBox(height: 12),
               DetailsCard(
                 rows: [
-                  ('Card balance', formatNaira(card.balance)),
+                  ('Card balance', formatLeone(card.balance)),
                   ('Card status', card.frozen ? 'Frozen' : 'Active · Ready to use'),
-                  ('Issuance paid', formatNaira(card.issuancePaid)),
+                  ('Issuance paid', formatLeone(card.issuancePaid)),
                   (
                     'Account balance',
-                    formatNaira(kAccountBalance - card.issuancePaid - card.balance),
+                    formatLeone(kAccountBalance - card.issuancePaid - card.balance),
                   ),
                 ],
               ),

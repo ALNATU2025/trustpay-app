@@ -84,7 +84,7 @@ class _SendBankScreenState extends State<SendBankScreen> {
       eyebrow: 'TRANSFER · FROM HOME / SERVICES',
       counter: '01 / 04',
       title: 'Send to a bank account',
-      subtitle: 'Available balance: ${formatNaira(kAccountBalance)}',
+      subtitle: 'Available balance: ${formatLeone(kAccountBalance)}',
       headerLabel: 'Cancel',
       onHeaderAction: () => goHome(context),
       primaryLabel: 'Review transfer',
@@ -136,7 +136,7 @@ class _SendBankScreenState extends State<SendBankScreen> {
               label: 'Amount',
               controller: _amount,
               hint: '0.00',
-              prefixText: '₦',
+              prefixText: 'Le ',
               allowDecimal: true,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               onChanged: (_) => setState(() {}),
@@ -162,7 +162,7 @@ class _SendBankScreenState extends State<SendBankScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Transfer fee: ${formatNaira(TransferDraft.fee)} · Total debit: ${formatNaira(total)}',
+              'Transfer fee: ${formatLeone(TransferDraft.fee)} · Total debit: ${formatLeone(total)}',
               style: const TextStyle(fontSize: 14, color: TpColors.muted),
             ),
           ],
@@ -193,17 +193,17 @@ class CheckTransferScreen extends StatelessWidget {
       onSecondary: () => Navigator.maybePop(context),
       child: Column(
         children: [
-          AmountBanner(label: 'Total debit', value: formatNaira(draft.total)),
+          AmountBanner(label: 'Total debit', value: formatLeone(draft.total)),
           const SizedBox(height: 12),
           DetailsCard(
             rows: [
               ('Recipient', draft.accountName),
               ('Bank / account', '${draft.bank} · ${draft.accountNumber}'),
-              ('Amount', formatNaira(draft.amount)),
-              ('Transfer fee', formatNaira(TransferDraft.fee)),
+              ('Amount', formatLeone(draft.amount)),
+              ('Transfer fee', formatLeone(TransferDraft.fee)),
               ('Note', draft.note.trim().isEmpty ? '—' : draft.note.trim()),
               ('From', 'TrustPay · •• ${kAccountNumber.substring(6)}'),
-              ('Balance after', formatNaira(kAccountBalance - draft.total)),
+              ('Balance after', formatLeone(kAccountBalance - draft.total)),
             ],
           ),
           const SizedBox(height: 16),
@@ -259,7 +259,7 @@ class _AuthorizeTransferScreenState extends State<AuthorizeTransferScreen> {
       subtitle: 'Enter your 4-digit transaction PIN.',
       headerLabel: 'Cancel',
       onHeaderAction: () => goHome(context),
-      primaryLabel: 'Send ${formatNaira(d.total)}',
+      primaryLabel: 'Send ${formatLeone(d.total)}',
       onPrimary: _pin.length == 4 ? _send : null,
       secondaryLabel: 'Cancel transfer',
       onSecondary: () => goHome(context),
@@ -269,13 +269,13 @@ class _AuthorizeTransferScreenState extends State<AuthorizeTransferScreen> {
             child: Column(
               children: [
                 Text(
-                  '${formatNaira(d.amount)} → ${d.accountName}',
+                  '${formatLeone(d.amount)} → ${d.accountName}',
                   textAlign: TextAlign.center,
                   style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  '${d.bank} · ${d.maskedAccount} · Fee ${formatNaira(TransferDraft.fee)}',
+                  '${d.bank} · ${d.maskedAccount} · Fee ${formatLeone(TransferDraft.fee)}',
                   textAlign: TextAlign.center,
                   style: const TextStyle(fontSize: 13, color: TpColors.muted),
                 ),
@@ -332,7 +332,7 @@ class TransferCompleteScreen extends StatelessWidget {
       child: Column(
         children: [
           ResultHeader(
-            headline: '${formatNaira(draft.amount)} sent',
+            headline: '${formatLeone(draft.amount)} sent',
             detail: '${draft.accountName} has received your transfer.',
           ),
           const SizedBox(height: 20),
@@ -342,9 +342,9 @@ class TransferCompleteScreen extends StatelessWidget {
               ('Bank / account', '${draft.bank} · ${draft.accountNumber}'),
               (
                 'Amount + fee',
-                '${formatNaira(draft.amount)} + ${formatNaira(TransferDraft.fee)}',
+                '${formatLeone(draft.amount)} + ${formatLeone(TransferDraft.fee)}',
               ),
-              ('Total debit', formatNaira(draft.total)),
+              ('Total debit', formatLeone(draft.total)),
               ('Reference', reference),
               ('Paid at', formatDateTime(paidAt)),
             ],
@@ -355,7 +355,7 @@ class TransferCompleteScreen extends StatelessWidget {
             background: TpColors.greenTint,
             accent: TpColors.green,
             textColor: TpColors.green,
-            text: 'Available balance · ${formatNaira(kAccountBalance - draft.total)}',
+            text: 'Available balance · ${formatLeone(kAccountBalance - draft.total)}',
           ),
           const SizedBox(height: 8),
           Center(

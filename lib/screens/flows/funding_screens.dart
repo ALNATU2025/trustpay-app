@@ -114,21 +114,21 @@ class _FundByCardScreenState extends State<FundByCardScreen> {
         obscure: false,
         notice: 'Never share this code with anyone, including TrustPay staff.',
         rows: [
-          ('Funding amount', formatNaira(amount)),
-          ('Card fee', formatNaira(fee)),
+          ('Funding amount', formatLeone(amount)),
+          ('Card fee', formatLeone(fee)),
           ('Card', '•• $last4'),
-          ('Balance after', formatNaira(kAccountBalance + amount)),
+          ('Balance after', formatLeone(kAccountBalance + amount)),
         ],
         successBuilder: (reference) => PaySuccessScreen(
           eyebrow: 'ADD MONEY · DEBIT CARD',
           counter: '03 / 03',
-          headline: '${formatNaira(amount)} added',
+          headline: '${formatLeone(amount)} added',
           detail: 'From your debit card •• $last4',
-          notice: 'New balance ${formatNaira(kAccountBalance + amount)}',
+          notice: 'New balance ${formatLeone(kAccountBalance + amount)}',
           rows: [
-            ('Amount', formatNaira(amount)),
-            ('Card fee', formatNaira(fee)),
-            ('Total charged', formatNaira(total)),
+            ('Amount', formatLeone(amount)),
+            ('Card fee', formatLeone(fee)),
+            ('Total charged', formatLeone(total)),
             ('Reference', reference),
           ],
         ),
@@ -160,20 +160,20 @@ class _FundByCardScreenState extends State<FundByCardScreen> {
               label: 'Amount',
               controller: _amount,
               hint: '0.00',
-              prefixText: '₦',
+              prefixText: 'Le ',
               allowDecimal: true,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               onChanged: (_) => setState(() {}),
               validator: (v) {
                 final a = parseAmount(v ?? '');
-                if (a < 100) return 'Minimum is ₦100';
-                if (a > 500000) return 'Maximum is ₦500,000 per payment';
+                if (a < 5) return 'Minimum is Le 5';
+                if (a > 25000) return 'Maximum is Le 25,000 per payment';
                 return null;
               },
             ),
             const SizedBox(height: 8),
             AmountChips(
-              amounts: const [1000, 5000, 10000, 20000],
+              amounts: const [100, 500, 1000, 2000],
               onPick: (a) => setState(() => _amount.text = a.toStringAsFixed(0)),
             ),
             const SizedBox(height: 16),
@@ -221,7 +221,7 @@ class _FundByCardScreenState extends State<FundByCardScreen> {
             const SizedBox(height: 14),
             Text(
               _value > 0
-                  ? 'Card fee ${formatNaira(_fee)} · You pay ${formatNaira(_value + _fee)}'
+                  ? 'Card fee ${formatLeone(_fee)} · You pay ${formatLeone(_value + _fee)}'
                   : 'A small card fee applies.',
               style: const TextStyle(fontSize: 13, color: TpColors.muted),
             ),
@@ -273,21 +273,21 @@ class _FundCardScreenState extends State<FundCardScreen> {
         rows: [
           ('From', 'TrustPay account'),
           ('To', 'Virtual card •• ${card.last4}'),
-          ('Amount', formatNaira(amount)),
-          ('Account balance after', formatNaira(kAccountBalance - amount)),
-          ('Card balance after', formatNaira(newCard)),
+          ('Amount', formatLeone(amount)),
+          ('Account balance after', formatLeone(kAccountBalance - amount)),
+          ('Card balance after', formatLeone(newCard)),
         ],
         onConfirmed: () => virtualCardNotifier.value = card.copyWith(balance: newCard),
         successBuilder: (reference) => PaySuccessScreen(
           eyebrow: 'CARDS · FUND CARD',
           counter: '03 / 03',
-          headline: '${formatNaira(amount)} added to card',
+          headline: '${formatLeone(amount)} added to card',
           detail: 'Virtual card •• ${card.last4}',
-          notice: 'Card balance ${formatNaira(newCard)}',
+          notice: 'Card balance ${formatLeone(newCard)}',
           rows: [
-            ('Amount', formatNaira(amount)),
-            ('Card balance', formatNaira(newCard)),
-            ('Account balance', formatNaira(kAccountBalance - amount)),
+            ('Amount', formatLeone(amount)),
+            ('Card balance', formatLeone(newCard)),
+            ('Account balance', formatLeone(kAccountBalance - amount)),
             ('Reference', reference),
           ],
         ),
@@ -302,7 +302,7 @@ class _FundCardScreenState extends State<FundCardScreen> {
       eyebrow: 'CARDS · FUND CARD',
       counter: '01 / 03',
       title: 'Fund your card',
-      subtitle: card == null ? 'Create a virtual card first.' : 'Virtual card •• ${card.last4} · Balance ${formatNaira(card.balance)}',
+      subtitle: card == null ? 'Create a virtual card first.' : 'Virtual card •• ${card.last4} · Balance ${formatLeone(card.balance)}',
       headerLabel: 'Cancel',
       onHeaderAction: () => goHome(context),
       primaryLabel: 'Review funding',
@@ -318,20 +318,20 @@ class _FundCardScreenState extends State<FundCardScreen> {
               label: 'Amount to add',
               controller: _amount,
               hint: '0.00',
-              prefixText: '₦',
+              prefixText: 'Le ',
               allowDecimal: true,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               onChanged: (_) => setState(() {}),
               validator: (v) {
                 final a = parseAmount(v ?? '');
-                if (a < 100) return 'Minimum is ₦100';
+                if (a < 5) return 'Minimum is Le 5';
                 if (a > kAccountBalance) return 'Insufficient balance';
                 return null;
               },
             ),
             const SizedBox(height: 8),
             AmountChips(
-              amounts: const [1000, 5000, 10000, 20000],
+              amounts: const [100, 500, 1000, 2000],
               onPick: (a) => setState(() => _amount.text = a.toStringAsFixed(0)),
             ),
             const SizedBox(height: 14),

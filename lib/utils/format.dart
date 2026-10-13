@@ -1,5 +1,8 @@
-/// Formats a number as Nigerian naira, e.g. `₦248,500.00`.
-String formatNaira(num value, {bool showSign = false, int decimals = 2}) {
+/// Currency symbol shown before every amount (new leone, SLE).
+const String kCurrencySymbol = 'Le ';
+
+/// Formats a number as Sierra Leone leones (SLE), e.g. `Le 12,450.00`.
+String formatLeone(num value, {bool showSign = false, int decimals = 2}) {
   final negative = value < 0;
   final fixed = value.abs().toStringAsFixed(decimals);
   final parts = fixed.split('.');
@@ -9,7 +12,7 @@ String formatNaira(num value, {bool showSign = false, int decimals = 2}) {
   );
   final sign = negative ? '-' : (showSign ? '+' : '');
   final fraction = decimals > 0 ? '.${parts[1]}' : '';
-  return '$sign₦$whole$fraction';
+  return '$sign$kCurrencySymbol$whole$fraction';
 }
 
 const _monthsShort = [
@@ -31,6 +34,6 @@ String formatDateTime(DateTime d) =>
 /// `11 Oct`
 String formatShortDate(DateTime d) => '${d.day} ${_monthsShort[d.month - 1]}';
 
-/// Reads an amount typed by the user, ignoring commas and the naira sign.
+/// Reads an amount typed by the user, ignoring commas and the Le sign.
 double parseAmount(String text) =>
-    double.tryParse(text.replaceAll(',', '').replaceAll('₦', '').trim()) ?? 0;
+    double.tryParse(text.replaceAll(',', '').replaceAll('Le', '').trim()) ?? 0;

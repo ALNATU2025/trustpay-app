@@ -3,12 +3,12 @@ import 'dart:math' as math;
 import '../models/models.dart';
 
 /// Sample values from the design. Replace these with data from your API.
-const double kAccountBalance = 248500;
-const String kAccountName = 'Ada Okafor';
+const double kAccountBalance = 12450;
+const String kAccountName = 'Aminata Kamara';
 const String kAccountNumber = '0123454821';
-const String kPhone = '0803 456 7890';
-const String kBusinessName = 'Ada Stores';
-const String kEmail = 'ada.okafor@example.com';
+const String kPhone = '076 123 456';
+const String kBusinessName = 'Kamara Stores';
+const String kEmail = 'aminata.kamara@example.com';
 const String kTier = 'Tier 2 · Verified';
 
 /// Shows the Admin console in the menu. TODO: set this from the role your API
@@ -17,11 +17,24 @@ const String kTier = 'Tier 2 · Verified';
 const bool kIsAdmin = true;
 
 /// Placeholder support details. Replace with your real ones.
-const String kSupportPhone = '0700 000 0000';
+const String kSupportPhone = '+232 00 000 000';
 const String kSupportEmail = 'support@trustpay.example';
 
-const kBanks = ['GTBank', 'Access Bank', 'Zenith Bank', 'UBA', 'First Bank'];
-const kNetworks = ['MTN', 'Airtel', 'Glo', '9mobile'];
+/// Sierra Leone banks shown in transfers. Replace with the list from your payment partner.
+const kBanks = [
+  'Rokel Commercial Bank',
+  'Sierra Leone Commercial Bank',
+  'Ecobank',
+  'GTBank',
+  'Union Trust Bank',
+  'Access Bank',
+  'First Bank',
+  'Zenith Bank',
+];
+
+/// Sierra Leone mobile money wallets.
+const kMobileMoney = ['Orange Money', 'Afrimoney', 'Qmoney'];
+const kNetworks = ['Orange', 'Africell', 'Qcell'];
 
 /// Reference such as `TP-TRF-111026-2048` (code, day-month-year, 4 digits).
 String makeReference(String code) {
@@ -48,7 +61,7 @@ String makeToken() {
 /// Sample bank account name lookup. Replace with your name-enquiry API.
 Future<String?> lookupBankAccount(String bank, String number) async {
   await Future<void>.delayed(const Duration(milliseconds: 500));
-  return number.length == 10 ? 'Tolu Adebayo' : null;
+  return number.length == 10 ? 'Fatmata Conteh' : null;
 }
 
 class MeterInfo {
@@ -62,7 +75,7 @@ class MeterInfo {
 Future<MeterInfo?> lookupMeter(String provider, String meter) async {
   await Future<void>.delayed(const Duration(milliseconds: 500));
   return meter.length == 11
-      ? const MeterInfo('ADA OKAFOR', '24 Allen Avenue, Ikeja')
+      ? const MeterInfo('AMINATA KAMARA', '12 Wilberforce Street, Freetown')
       : null;
 }
 
@@ -76,21 +89,21 @@ class BillProvider {
 }
 
 const kElectricityProviders = [
-  BillProvider('Ikeja Electric', 'Prepaid & postpaid · Lagos'),
-  BillProvider('Eko Electricity', 'Prepaid & postpaid · Lagos'),
-  BillProvider('Abuja Electricity', 'Prepaid & postpaid · Abuja'),
+  BillProvider('EDSA Cash Power', 'Prepaid · Freetown'),
+  BillProvider('EDSA Cash Power (Provinces)', 'Prepaid · Bo, Kenema, Makeni'),
+  BillProvider('EDSA Postpaid', 'Postpaid · Freetown'),
 ];
 
 const kTvProviders = [
-  BillProvider('DStv', 'Subscriptions · Nigeria'),
-  BillProvider('GOtv', 'Subscriptions · Nigeria'),
-  BillProvider('StarTimes', 'Subscriptions · Nigeria'),
+  BillProvider('DStv', 'Subscriptions · Sierra Leone'),
+  BillProvider('GOtv', 'Subscriptions · Sierra Leone'),
+  BillProvider('StarTimes', 'Subscriptions · Sierra Leone'),
 ];
 
 const kInternetProviders = [
-  BillProvider('Spectranet', 'Data plans · Nigeria'),
-  BillProvider('Smile', 'Data plans · Nigeria'),
-  BillProvider('FibreOne', 'Broadband · Lagos'),
+  BillProvider('Orange Internet', 'Data plans · Sierra Leone'),
+  BillProvider('Africell Data', 'Data plans · Sierra Leone'),
+  BillProvider('Sierratel', 'Broadband · Freetown'),
 ];
 
 // ---------------------------------------------------------------- data plans
@@ -106,10 +119,10 @@ class DataPlan {
 }
 
 const kDataPlans = [
-  DataPlan('500 MB', 7, 500),
-  DataPlan('1.5 GB', 30, 1500),
-  DataPlan('3 GB', 30, 2500),
-  DataPlan('10 GB', 30, 6000),
+  DataPlan('500 MB', 7, 25),
+  DataPlan('1.5 GB', 30, 75),
+  DataPlan('3 GB', 30, 125),
+  DataPlan('10 GB', 30, 300),
 ];
 
 // ---------------------------------------------------------------- transactions
@@ -140,17 +153,17 @@ class Txn {
 
 final List<Txn> kSampleTransactions = [
   Txn(
-    title: 'To Tolu Adebayo',
-    meta: '12:50 · Successful · Includes ₦10 fee',
-    amount: -25010,
+    title: 'To Fatmata Conteh',
+    meta: '12:50 · Successful · Includes Le 1 fee',
+    amount: -1251,
     kind: TxnKind.transfer,
     date: DateTime(2026, 10, 11, 12, 50),
     receipt: ReceiptData.transfer(
       const TransferDraft(
-        bank: 'GTBank',
+        bank: 'Rokel Commercial Bank',
         accountNumber: '0123456789',
-        accountName: 'Tolu Adebayo',
-        amount: 25000,
+        accountName: 'Fatmata Conteh',
+        amount: 1250,
         note: 'October supplies',
       ),
       'TP-TRF-111026-2048',
@@ -158,37 +171,37 @@ final List<Txn> kSampleTransactions = [
     ),
   ),
   Txn(
-    title: 'From Chidi Okafor',
+    title: 'From Mohamed Sesay',
     meta: '10:24 · Bank transfer · Successful',
-    amount: 25000,
+    amount: 1250,
     kind: TxnKind.transfer,
     date: DateTime(2026, 10, 11, 10, 24),
   ),
   Txn(
-    title: 'Ikeja Electric',
+    title: 'EDSA Cash Power',
     meta: '09:18 · Electricity · Successful',
-    amount: -12500,
+    amount: -625,
     kind: TxnKind.bill,
     date: DateTime(2026, 10, 11, 9, 18),
   ),
   Txn(
-    title: 'To Tolu Adebayo',
+    title: 'To Fatmata Conteh',
     meta: '16:20 · Bank transfer · Successful',
-    amount: -8000,
+    amount: -400,
     kind: TxnKind.transfer,
     date: DateTime(2026, 10, 10, 16, 20),
   ),
   Txn(
-    title: 'MTN Airtime',
-    meta: '11:08 · 0803 456 7890 · Successful',
-    amount: -1000,
+    title: 'Orange Airtime',
+    meta: '11:08 · 076 123 456 · Successful',
+    amount: -50,
     kind: TxnKind.airtime,
     date: DateTime(2026, 10, 10, 11, 8),
   ),
   Txn(
     title: 'Account funding',
-    meta: '08:45 · GTBank · Successful',
-    amount: 100000,
+    meta: '08:45 · Rokel Commercial Bank · Successful',
+    amount: 5000,
     kind: TxnKind.funding,
     date: DateTime(2026, 10, 9, 8, 45),
   ),

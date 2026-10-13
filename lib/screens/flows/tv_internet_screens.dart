@@ -19,15 +19,15 @@ class _Package {
 
 // Sample packages and prices. Replace with the list from your bills provider.
 const _tvPackages = [
-  _Package('Basic', 'Essential channels · 1 month', 2500),
-  _Package('Standard', 'More sport and movies · 1 month', 6000),
-  _Package('Premium', 'Everything, in HD · 1 month', 12000),
+  _Package('Basic', 'Essential channels · 1 month', 150),
+  _Package('Standard', 'More sport and movies · 1 month', 300),
+  _Package('Premium', 'Everything, in HD · 1 month', 600),
 ];
 
 const _internetPackages = [
-  _Package('Starter', '20 GB · 30 days', 5000),
-  _Package('Plus', '50 GB · 30 days', 10000),
-  _Package('Max', '100 GB · 30 days', 18000),
+  _Package('Starter', '20 GB · 30 days', 250),
+  _Package('Plus', '50 GB · 30 days', 500),
+  _Package('Max', '100 GB · 30 days', 900),
 ];
 
 /// Bills 2/4 for TV and internet: account number, package and phone.
@@ -73,7 +73,7 @@ class _TvInternetScreenState extends State<TvInternetScreen> {
     await Future<void>.delayed(const Duration(milliseconds: 500));
     if (!mounted || id != _lookupId) return;
     setState(() {
-      _customer = 'Ada Okafor';
+      _customer = 'Aminata Kamara';
       _verifying = false;
     });
   }
@@ -107,18 +107,18 @@ class _TvInternetScreenState extends State<TvInternetScreen> {
           (_numberLabel, number),
           ('Package', '${pkg.name} · ${pkg.detail}'),
           ('Receipt SMS to', phone),
-          ('Balance after', formatNaira(kAccountBalance - pkg.price)),
+          ('Balance after', formatLeone(kAccountBalance - pkg.price)),
         ],
         successBuilder: (reference) => PaySuccessScreen(
           eyebrow: 'BILLS · ${_kind.toUpperCase()}',
           counter: '04 / 04',
-          headline: '${formatNaira(pkg.price)} paid',
+          headline: '${formatLeone(pkg.price)} paid',
           detail: '$provider ${pkg.name} for $number',
-          notice: 'Subscription active shortly · Balance ${formatNaira(kAccountBalance - pkg.price)}',
+          notice: 'Subscription active shortly · Balance ${formatLeone(kAccountBalance - pkg.price)}',
           rows: [
             ('Customer', customer),
             ('Package', pkg.name),
-            ('Amount', formatNaira(pkg.price)),
+            ('Amount', formatLeone(pkg.price)),
             ('Reference', reference),
           ],
         ),
@@ -171,7 +171,7 @@ class _TvInternetScreenState extends State<TvInternetScreen> {
             for (var i = 0; i < _packages.length; i++) ...[
               SelectTile(
                 icon: widget.isTv ? Icons.tv_outlined : Icons.wifi,
-                title: '${_packages[i].name} · ${formatNaira(_packages[i].price, decimals: 0)}',
+                title: '${_packages[i].name} · ${formatLeone(_packages[i].price, decimals: 0)}',
                 subtitle: _packages[i].detail,
                 selected: i == _package,
                 onTap: () => setState(() => _package = i),
@@ -187,7 +187,7 @@ class _TvInternetScreenState extends State<TvInternetScreen> {
             ),
             const SizedBox(height: 14),
             Text(
-              'Total debit ${formatNaira(_packages[_package].price)} · Balance ${formatNaira(kAccountBalance)}',
+              'Total debit ${formatLeone(_packages[_package].price)} · Balance ${formatLeone(kAccountBalance)}',
               style: const TextStyle(fontSize: 13, color: TpColors.muted),
             ),
           ],

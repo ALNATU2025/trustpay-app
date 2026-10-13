@@ -9,11 +9,11 @@ import '../../widgets/flow_widgets.dart';
 import '../../widgets/step_scaffold.dart';
 import 'generic_flow.dart';
 
-const _states = ['Lagos', 'FCT Abuja', 'Rivers', 'Oyo', 'Kano', 'Enugu', 'Ogun', 'Kaduna'];
+const _states = ['Freetown', 'Western Area Rural', 'Bo', 'Makeni', 'Kenema', 'Koidu', 'Port Loko', 'Kambia'];
 
 /// Sample fees. Replace with the amounts from your card issuer.
-const double _cardFee = 1500;
-const double _homeDeliveryFee = 1000;
+const double _cardFee = 75;
+const double _homeDeliveryFee = 50;
 
 /// Order a physical debit card: delivery details, review, PIN, confirmation.
 class OrderPhysicalCardScreen extends StatefulWidget {
@@ -55,7 +55,7 @@ class _OrderPhysicalCardScreenState extends State<OrderPhysicalCardScreen> {
         eyebrow: 'CARDS · PHYSICAL CARD',
         counter: '02 / 03',
         title: 'Confirm card order',
-        bannerLabel: 'Card ${formatNaira(_cardFee, decimals: 0)} + delivery ${formatNaira(_delivery, decimals: 0)}',
+        bannerLabel: 'Card ${formatLeone(_cardFee, decimals: 0)} + delivery ${formatLeone(_delivery, decimals: 0)}',
         total: total,
         referenceCode: 'PCD',
         payLabel: 'Order for',
@@ -65,7 +65,7 @@ class _OrderPhysicalCardScreenState extends State<OrderPhysicalCardScreen> {
           ('Method', method),
           ('Delivery to', where),
           ('Contact', _phone.text.trim()),
-          ('Balance after', formatNaira(kAccountBalance - total)),
+          ('Balance after', formatLeone(kAccountBalance - total)),
         ],
         successBuilder: (reference) => PaySuccessScreen(
           eyebrow: 'CARDS · PHYSICAL CARD',
@@ -76,7 +76,7 @@ class _OrderPhysicalCardScreenState extends State<OrderPhysicalCardScreen> {
           notice: 'Track your order with the reference below.',
           rows: [
             ('Method', method),
-            ('Total paid', formatNaira(total)),
+            ('Total paid', formatLeone(total)),
             ('Reference', reference),
           ],
         ),
@@ -110,7 +110,7 @@ class _OrderPhysicalCardScreenState extends State<OrderPhysicalCardScreen> {
               onChanged: (i) => setState(() => _home = i == 0),
             ),
             const SizedBox(height: 16),
-            const Text('State', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+            const Text('District or city', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
               value: _state,
@@ -120,9 +120,9 @@ class _OrderPhysicalCardScreenState extends State<OrderPhysicalCardScreen> {
             ),
             if (_home) ...[
               const SizedBox(height: 16),
-              TpField(label: 'Street address', controller: _address, hint: '24 Allen Avenue', validator: _required),
+              TpField(label: 'Street address', controller: _address, hint: '12 Wilberforce Street', validator: _required),
               const SizedBox(height: 16),
-              TpField(label: 'City / town', controller: _city, hint: 'Ikeja', validator: _required),
+              TpField(label: 'City / town', controller: _city, hint: 'Freetown', validator: _required),
             ],
             const SizedBox(height: 16),
             TpField(
@@ -133,7 +133,7 @@ class _OrderPhysicalCardScreenState extends State<OrderPhysicalCardScreen> {
             ),
             const SizedBox(height: 14),
             Text(
-              'Card ${formatNaira(_cardFee)} · Delivery ${formatNaira(_delivery)} · Total ${formatNaira(_cardFee + _delivery)}',
+              'Card ${formatLeone(_cardFee)} · Delivery ${formatLeone(_delivery)} · Total ${formatLeone(_cardFee + _delivery)}',
               style: const TextStyle(fontSize: 13, color: TpColors.muted),
             ),
           ],

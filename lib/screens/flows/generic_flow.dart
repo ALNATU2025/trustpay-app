@@ -75,7 +75,7 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
       title: widget.title,
       headerLabel: 'Cancel',
       onHeaderAction: () => goHome(context),
-      primaryLabel: '${widget.payLabel} ${formatNaira(widget.total)}',
+      primaryLabel: '${widget.payLabel} ${formatLeone(widget.total)}',
       primaryLoading: _loading,
       onPrimary: _pin.length == widget.pinLength && !_loading ? _pay : null,
       secondaryLabel: 'Edit details',
@@ -83,7 +83,7 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          AmountBanner(label: widget.bannerLabel, value: formatNaira(widget.total)),
+          AmountBanner(label: widget.bannerLabel, value: formatLeone(widget.total)),
           const SizedBox(height: 12),
           DetailsCard(rows: widget.rows),
           const SizedBox(height: 20),
@@ -187,7 +187,7 @@ class AmountChips extends StatelessWidget {
       children: [
         for (final a in amounts)
           ActionChip(
-            label: Text(formatNaira(a, decimals: 0)),
+            label: Text(formatLeone(a, decimals: 0)),
             onPressed: () => onPick(a),
             backgroundColor: TpColors.tint,
             side: BorderSide.none,
@@ -199,4 +199,4 @@ class AmountChips extends StatelessWidget {
 }
 
 /// Balance line used under amount fields.
-String balanceLine() => 'Available balance ${formatNaira(kAccountBalance)}';
+String balanceLine() => 'Available balance ${formatLeone(kAccountBalance)}';

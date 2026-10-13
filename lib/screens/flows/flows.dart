@@ -11,3 +11,4 @@ export 'generic_flow.dart';
 export 'physical_card_screens.dart';
 export 'send_user_screens.dart';
 export 'tv_internet_screens.dart';
+export 'mobile_money_screens.dart';

@@ -18,7 +18,7 @@ class _IdentityScreenState extends State<IdentityScreen> {
   final _dob = TextEditingController();
   final _idNumber = TextEditingController();
   final _address = TextEditingController();
-  String _method = 'BVN';
+  String _method = 'NIN';
 
   static const _months = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -53,7 +53,7 @@ class _IdentityScreenState extends State<IdentityScreen> {
 
   void _submit() {
     if (_form.currentState!.validate()) {
-      // TODO: verify identity with your BVN / NIN provider.
+      // TODO: verify identity with your National Civil Registration Authority (NCRA) or KYC provider.
       Navigator.pushNamed(context, '/ready');
     }
   }
@@ -73,7 +73,7 @@ class _IdentityScreenState extends State<IdentityScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            TpField(label: 'Legal name', controller: _name, hint: 'Ada Okafor', validator: _required),
+            TpField(label: 'Legal name', controller: _name, hint: 'Aminata Kamara', validator: _required),
             const SizedBox(height: 16),
             TpField(
               label: 'Date of birth',
@@ -92,11 +92,13 @@ class _IdentityScreenState extends State<IdentityScreen> {
               icon: const Icon(Icons.keyboard_arrow_down, color: TpColors.primary),
               decoration: tpDecoration(),
               items: const [
-                DropdownMenuItem(value: 'BVN', child: Text('Bank Verification Number (BVN)')),
-                DropdownMenuItem(value: 'NIN', child: Text('National Identification Number (NIN)')),
+                DropdownMenuItem(value: 'NIN', child: Text('National ID Number (NIN)')),
+                DropdownMenuItem(value: 'Passport', child: Text('Passport number')),
+                DropdownMenuItem(value: 'Driver’s licence', child: Text('Driver’s licence number')),
+                DropdownMenuItem(value: 'Voter ID', child: Text('Voter ID number')),
               ],
               onChanged: (v) => setState(() {
-                _method = v ?? 'BVN';
+                _method = v ?? 'NIN';
                 _idNumber.clear();
               }),
             ),
@@ -114,7 +116,7 @@ class _IdentityScreenState extends State<IdentityScreen> {
             TpField(
               label: 'Residential address',
               controller: _address,
-              hint: '24 Allen Avenue, Ikeja, Lagos',
+              hint: '12 Wilberforce Street, Freetown',
               validator: _required,
             ),
             const SizedBox(height: 16),

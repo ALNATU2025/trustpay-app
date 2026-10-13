@@ -93,13 +93,13 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
               suffix: const Icon(Icons.contacts_outlined, color: TpColors.primary),
               validator: (v) {
                 final digits = (v ?? '').replaceAll(' ', '');
-                return digits.length == 11 ? null : 'Enter an 11-digit phone number';
+                return digits.length == 9 ? null : 'Enter a 9-digit number, like 076 123 456';
               },
             ),
             if (own) ...[
               const SizedBox(height: 8),
               Text(
-                'Ada’s number · $_network Nigeria',
+                'Aminata’s number · $_network Sierra Leone',
                 style: const TextStyle(fontSize: 13, color: TpColors.muted),
               ),
             ],
@@ -120,7 +120,7 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
 }
 
 String _recipientLine(String network, String phone) =>
-    '$network · $phone${_isOwnNumber(phone) ? ' · Ada' : ''}';
+    '$network · $phone${_isOwnNumber(phone) ? ' · Aminata' : ''}';
 
 /// Airtime 2/3: amount and PIN.
 class BuyAirtimeScreen extends StatefulWidget {
@@ -134,9 +134,9 @@ class BuyAirtimeScreen extends StatefulWidget {
 }
 
 class _BuyAirtimeScreenState extends State<BuyAirtimeScreen> {
-  static const _quick = [500, 1000, 2000, 5000];
+  static const _quick = [20, 50, 100, 200];
 
-  final _amount = TextEditingController(text: '2000');
+  final _amount = TextEditingController(text: '100');
   String _pin = '';
 
   @override
@@ -172,7 +172,7 @@ class _BuyAirtimeScreenState extends State<BuyAirtimeScreen> {
       subtitle: _recipientLine(widget.network, widget.phone),
       headerLabel: 'Cancel',
       onHeaderAction: () => goHome(context),
-      primaryLabel: 'Pay ${formatNaira(_value)}',
+      primaryLabel: 'Pay ${formatLeone(_value)}',
       onPrimary: _valid ? _pay : null,
       secondaryLabel: 'Back to service selection',
       onSecondary: () => Navigator.maybePop(context),
@@ -183,7 +183,7 @@ class _BuyAirtimeScreenState extends State<BuyAirtimeScreen> {
             label: 'Airtime amount',
             controller: _amount,
             hint: '0.00',
-            prefixText: '₦',
+            prefixText: 'Le ',
             allowDecimal: true,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             onChanged: (_) => setState(() {}),
@@ -208,9 +208,9 @@ class _BuyAirtimeScreenState extends State<BuyAirtimeScreen> {
             rows: [
               ('Product', '${widget.network} airtime'),
               ('Recipient', widget.phone),
-              ('Amount / fee', '${formatNaira(_value)} / ${formatNaira(0)}'),
-              ('Total debit', formatNaira(_value)),
-              ('Balance after', formatNaira(kAccountBalance - _value)),
+              ('Amount / fee', '${formatLeone(_value)} / ${formatLeone(0)}'),
+              ('Total debit', formatLeone(_value)),
+              ('Balance after', formatLeone(kAccountBalance - _value)),
             ],
           ),
           const SizedBox(height: 20),
@@ -252,7 +252,7 @@ class _QuickAmount extends StatelessWidget {
             height: 44,
             child: Center(
               child: Text(
-                formatNaira(amount, decimals: 0),
+                formatLeone(amount, decimals: 0),
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
@@ -309,7 +309,7 @@ class _BuyDataScreenState extends State<BuyDataScreen> {
       subtitle: _recipientLine(widget.network, widget.phone),
       headerLabel: 'Cancel',
       onHeaderAction: () => goHome(context),
-      primaryLabel: 'Pay ${formatNaira(plan.price)}',
+      primaryLabel: 'Pay ${formatLeone(plan.price)}',
       onPrimary: _pin.length == 4 ? _pay : null,
       secondaryLabel: 'Back to service selection',
       onSecondary: () => Navigator.maybePop(context),
@@ -326,8 +326,8 @@ class _BuyDataScreenState extends State<BuyDataScreen> {
           ],
           const SizedBox(height: 6),
           Text(
-            'Fee ${formatNaira(0)} · Total ${formatNaira(plan.price)}\n'
-            'Balance after purchase: ${formatNaira(kAccountBalance - plan.price)}',
+            'Fee ${formatLeone(0)} · Total ${formatLeone(plan.price)}\n'
+            'Balance after purchase: ${formatLeone(kAccountBalance - plan.price)}',
             style: const TextStyle(fontSize: 14, height: 1.45, color: TpColors.muted),
           ),
           const SizedBox(height: 20),
@@ -383,7 +383,7 @@ class _PlanTile extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  formatNaira(plan.price),
+                  formatLeone(plan.price),
                   style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
                 ),
                 const SizedBox(width: 10),
@@ -430,8 +430,8 @@ class PurchaseSuccessScreen extends StatelessWidget {
       ),
       if (isData && expiry != null) ('Validity', '${p!.days} days · to ${formatShortDate(expiry)}'),
       ('Phone number', phone),
-      ('Amount / fee', '${formatNaira(amount)} / ${formatNaira(0)}'),
-      ('Total paid', formatNaira(amount)),
+      ('Amount / fee', '${formatLeone(amount)} / ${formatLeone(0)}'),
+      ('Total paid', formatLeone(amount)),
       ('Reference', reference),
     ];
 
@@ -455,7 +455,7 @@ class PurchaseSuccessScreen extends StatelessWidget {
             headline: isData ? 'Your data is ready' : 'Your airtime is ready',
             detail: isData && p != null
                 ? '${p.size} has been delivered to $phone.'
-                : '${formatNaira(amount)} has been delivered to $phone.',
+                : '${formatLeone(amount)} has been delivered to $phone.',
           ),
           const SizedBox(height: 20),
           DetailsCard(rows: rows),
@@ -465,7 +465,7 @@ class PurchaseSuccessScreen extends StatelessWidget {
             background: TpColors.greenTint,
             accent: TpColors.green,
             textColor: TpColors.green,
-            text: 'Available balance · ${formatNaira(kAccountBalance - amount)}',
+            text: 'Available balance · ${formatLeone(kAccountBalance - amount)}',
           ),
         ],
       ),

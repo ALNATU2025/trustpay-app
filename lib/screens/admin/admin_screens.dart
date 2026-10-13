@@ -16,13 +16,13 @@ class AdminDashboardScreen extends StatelessWidget {
   const AdminDashboardScreen({super.key});
 
   static const _week = [
-    ('Mon', 12.4),
-    ('Tue', 15.1),
-    ('Wed', 11.8),
-    ('Thu', 17.3),
-    ('Fri', 21.6),
-    ('Sat', 14.2),
-    ('Sun', 18.4),
+    ('Mon', 620),
+    ('Tue', 755),
+    ('Wed', 590),
+    ('Thu', 865),
+    ('Fri', 1080),
+    ('Sat', 710),
+    ('Sun', 921),
   ];
 
   @override
@@ -44,7 +44,7 @@ class AdminDashboardScreen extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              gradient: TpGradients.primary,
+              gradient: TpGradients.premium,
               borderRadius: BorderRadius.circular(24),
               boxShadow: TpShadows.glow,
             ),
@@ -54,8 +54,8 @@ class AdminDashboardScreen extends StatelessWidget {
                 const Text("Today's volume", style: TextStyle(fontSize: 14, color: Colors.white70)),
                 const SizedBox(height: 6),
                 CountUpText(
-                  value: 18420000,
-                  format: (v) => formatNaira(v, decimals: 0),
+                  value: 921000,
+                  format: (v) => formatLeone(v, decimals: 0),
                   style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w800, color: Colors.white),
                 ),
                 const SizedBox(height: 10),
@@ -98,7 +98,7 @@ class AdminDashboardScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text('Volume this week', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
-                const Text('₦ millions', style: TextStyle(fontSize: 12, color: TpColors.muted)),
+                const Text('Le thousands', style: TextStyle(fontSize: 12, color: TpColors.muted)),
                 const SizedBox(height: 16),
                 SizedBox(
                   height: 140,
@@ -106,7 +106,7 @@ class AdminDashboardScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       for (var i = 0; i < _week.length; i++)
-                        Expanded(child: _Bar(label: _week[i].$1, value: _week[i].$2, max: 22, index: i)),
+                        Expanded(child: _Bar(label: _week[i].$1, value: _week[i].$2, max: 1100, index: i)),
                     ],
                   ),
                 ),
@@ -140,7 +140,7 @@ class AdminDashboardScreen extends StatelessWidget {
             const Center(
               child: Padding(
                 padding: EdgeInsets.only(top: 16),
-                child: Text('Illustrative data · All amounts in NGN',
+                child: Text('Illustrative data · All amounts in SLE',
                     style: TextStyle(fontSize: 12, color: TpColors.muted)),
               ),
             ),
@@ -245,13 +245,13 @@ class AdminUsersScreen extends StatefulWidget {
 
 class _AdminUsersScreenState extends State<AdminUsersScreen> {
   final _users = [
-    _AdminUser('Ada Okafor', '0803 456 7890', 'Tier 2', 'Active'),
-    _AdminUser('Chidi Okafor', '0802 111 2233', 'Tier 3', 'Active'),
-    _AdminUser('Tolu Adebayo', '0805 222 3344', 'Tier 2', 'Active'),
-    _AdminUser('Ngozi Eze', '0807 333 4455', 'Tier 1', 'Pending KYC'),
-    _AdminUser('Ibrahim Musa', '0809 444 5566', 'Tier 2', 'Suspended'),
-    _AdminUser('Funke Bello', '0810 555 6677', 'Tier 1', 'Pending KYC'),
-    _AdminUser('Emeka Nwosu', '0812 666 7788', 'Tier 3', 'Active'),
+    _AdminUser('Aminata Kamara', '076 123 456', 'Tier 2', 'Active'),
+    _AdminUser('Mohamed Sesay', '077 222 333', 'Tier 3', 'Active'),
+    _AdminUser('Fatmata Conteh', '078 333 444', 'Tier 2', 'Active'),
+    _AdminUser('Mariatu Bangura', '030 444 555', 'Tier 1', 'Pending KYC'),
+    _AdminUser('Ibrahim Turay', '088 555 666', 'Tier 2', 'Suspended'),
+    _AdminUser('Isatu Koroma', '099 666 777', 'Tier 1', 'Pending KYC'),
+    _AdminUser('Abdul Jalloh', '079 777 888', 'Tier 3', 'Active'),
   ];
   String _query = '';
 
@@ -406,10 +406,10 @@ class AdminApprovalsScreen extends StatefulWidget {
 
 class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
   final _items = <_Approval>[
-    const _Approval(Icons.badge_outlined, 'KYC · Ngozi Eze', 'National ID submitted today, 09:12'),
-    const _Approval(Icons.badge_outlined, 'KYC · Funke Bello', 'Driver’s licence submitted yesterday'),
-    const _Approval(Icons.desktop_windows_outlined, 'POS terminal · Ada Stores', 'Requested 1 terminal, Ikeja branch'),
-    const _Approval(Icons.trending_up, 'Limit increase · Emeka Nwosu', 'Tier 3 daily limit to ₦10,000,000'),
+    const _Approval(Icons.badge_outlined, 'KYC · Mariatu Bangura', 'National ID submitted today, 09:12'),
+    const _Approval(Icons.badge_outlined, 'KYC · Isatu Koroma', 'Driver’s licence submitted yesterday'),
+    const _Approval(Icons.desktop_windows_outlined, 'POS terminal · Kamara Stores', 'Requested 1 terminal, Freetown branch'),
+    const _Approval(Icons.trending_up, 'Limit increase · Abdul Jalloh', 'Tier 3 daily limit to Le 500,000'),
   ];
 
   void _decide(_Approval a, bool approve) {

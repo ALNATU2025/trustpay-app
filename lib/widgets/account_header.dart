@@ -6,7 +6,7 @@ import '../utils/nav.dart';
 import 'common.dart';
 import 'motion.dart';
 
-/// Menu button, logo, "PERSONAL ACCOUNT / Hello, Ada" and the notification bell.
+/// Menu button, logo, "PERSONAL ACCOUNT / Hello, Aminata" and the notification bell.
 /// Must sit inside the Home shell so the menu button can open its drawer.
 class AccountHeader extends StatelessWidget {
   const AccountHeader({super.key});
@@ -35,7 +35,7 @@ class AccountHeader extends StatelessWidget {
               ),
               const SizedBox(height: 2),
               Text(
-                '${_greeting()}, Ada',
+                '${_greeting()}, Aminata',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),

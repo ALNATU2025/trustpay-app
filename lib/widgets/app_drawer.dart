@@ -45,7 +45,7 @@ class AppDrawer extends StatelessWidget {
               margin: const EdgeInsets.fromLTRB(16, 16, 16, 12),
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
-                gradient: TpGradients.primary,
+                gradient: TpGradients.premium,
                 borderRadius: BorderRadius.circular(24),
                 boxShadow: TpShadows.glow,
               ),

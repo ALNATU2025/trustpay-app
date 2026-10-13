@@ -18,7 +18,7 @@ class TransferDraft {
   final String note;
 
   /// Sample fee from the design. Replace with the fee from your API.
-  static const double fee = 10;
+  static const double fee = 1;
 
   double get total => amount + fee;
 
@@ -97,8 +97,8 @@ class TerminalDraft {
   final String state;
   final String contact;
 
-  static const double deposit = 30000;
-  static const double deliveryFee = 2500;
+  static const double deposit = 1500;
+  static const double deliveryFee = 125;
 
   double get total => deposit + deliveryFee;
 }
@@ -125,15 +125,15 @@ class ReceiptData {
       bannerLabel: 'Sent to ${d.accountName}',
       amount: d.amount,
       rows: [
-        ('Sender', 'Ada Okafor'),
+        ('Sender', 'Aminata Kamara'),
         ('From account', 'TrustPay · 0123454821'),
         ('Recipient', d.accountName),
         ('Bank / account', '${d.bank} · ${d.accountNumber}'),
         (
           'Amount / fee',
-          '${formatNaira(d.amount)} / ${formatNaira(TransferDraft.fee)}',
+          '${formatLeone(d.amount)} / ${formatLeone(TransferDraft.fee)}',
         ),
-        ('Total debit', formatNaira(d.total)),
+        ('Total debit', formatLeone(d.total)),
         if (d.note.trim().isNotEmpty) ('Note', d.note.trim()),
         ('Date & time', formatDateTime(at)),
         ('Reference', reference),

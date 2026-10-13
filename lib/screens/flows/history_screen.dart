@@ -49,7 +49,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
       if (q.isEmpty) return true;
       return t.title.toLowerCase().contains(q) ||
           t.meta.toLowerCase().contains(q) ||
-          formatNaira(t.amount.abs()).toLowerCase().contains(q);
+          formatLeone(t.amount.abs()).toLowerCase().contains(q);
     }).toList();
   }
 
@@ -102,7 +102,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
           icon: _icon(t),
           title: t.title,
           subtitle: t.meta,
-          trailing: formatNaira(t.amount, showSign: true),
+          trailing: formatLeone(t.amount, showSign: true),
           trailingColor: t.isCredit ? TpColors.green : TpColors.navy,
           onTap: t.receipt == null
               ? null
@@ -114,7 +114,7 @@ class _TransactionHistoryScreenState extends State<TransactionHistoryScreen> {
     return StepScaffold(
       eyebrow: 'TRANSACTIONS · FROM HOME / SEE ALL',
       title: 'Transaction history',
-      subtitle: 'Your personal account · Ada Okafor',
+      subtitle: 'Your personal account · Aminata Kamara',
       headerLabel: 'Done',
       onHeaderAction: () => goHome(context),
       primaryLabel: 'Download statement',

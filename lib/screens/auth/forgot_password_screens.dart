@@ -58,7 +58,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             TpField(
               label: 'Phone number or email',
               controller: _id,
-              hint: 'ada.okafor@example.com',
+              hint: 'aminata.kamara@example.com',
               keyboardType: TextInputType.emailAddress,
               validator: _required,
             ),

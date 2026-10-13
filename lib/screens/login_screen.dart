@@ -42,7 +42,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return StepScaffold(
       eyebrow: 'RETURNING USER · LOGIN',
-      title: 'Welcome back, Ada',
+      title: 'Welcome back, Aminata',
       subtitle: 'Log in to your TrustPay account securely.',
       primaryLabel: 'Secure login',
       onPrimary: _login,
@@ -56,7 +56,7 @@ class _LoginScreenState extends State<LoginScreen> {
             TpField(
               label: 'Phone number or email',
               controller: _id,
-              hint: 'ada.okafor@example.com',
+              hint: 'aminata.kamara@example.com',
               keyboardType: TextInputType.emailAddress,
               validator: _required,
             ),

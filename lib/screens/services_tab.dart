@@ -152,7 +152,7 @@ class _ServicesTabState extends State<ServicesTab> {
             padding: EdgeInsets.only(top: 16),
             child: Center(
               child: Text(
-                'Illustrative account · All amounts in NGN',
+                'Illustrative account · All amounts in Leones (SLE)',
                 style: TextStyle(fontSize: 12, color: TpColors.muted),
               ),
             ),

@@ -80,7 +80,7 @@ class AmountBanner extends StatelessWidget {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: background == TpColors.primary ? null : background,
-        gradient: background == TpColors.primary ? TpGradients.primary : null,
+        gradient: background == TpColors.primary ? TpGradients.premium : null,
         borderRadius: BorderRadius.circular(24),
         boxShadow: background == TpColors.primary ? TpShadows.glow : null,
       ),

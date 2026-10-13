@@ -77,11 +77,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
-                  child: TpField(label: 'First name', controller: _first, hint: 'Ada', validator: _required),
+                  child: TpField(label: 'First name', controller: _first, hint: 'Aminata', validator: _required),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: TpField(label: 'Last name', controller: _last, hint: 'Okafor', validator: _required),
+                  child: TpField(label: 'Last name', controller: _last, hint: 'Kamara', validator: _required),
                 ),
               ],
             ),
@@ -89,7 +89,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
             TpField(
               label: 'Email address',
               controller: _email,
-              hint: 'ada.okafor@example.com',
+              hint: 'aminata.kamara@example.com',
               keyboardType: TextInputType.emailAddress,
               validator: _emailRule,
             ),
@@ -97,7 +97,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
             TpField(
               label: 'Phone number',
               controller: _phone,
-              hint: '+234 803 456 7890',
+              hint: '+232 76 123 456',
               keyboardType: TextInputType.phone,
               validator: _required,
             ),

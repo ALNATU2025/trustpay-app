@@ -243,8 +243,8 @@ class NotificationsScreen extends StatefulWidget {
 class _NotificationsScreenState extends State<NotificationsScreen> {
   // Sample notifications. Replace with data from your API.
   final _items = [
-    _Note(Icons.south_west, 'Money received', '₦25,000 from Chidi Okafor.', '10:24', unread: true),
-    _Note(Icons.flash_on_outlined, 'Bill paid', 'Ikeja Electric payment of ₦12,500 was successful.', '09:18', unread: true),
+    _Note(Icons.south_west, 'Money received', 'Le 1,250 from Mohamed Sesay.', '10:24', unread: true),
+    _Note(Icons.flash_on_outlined, 'Bill paid', 'EDSA Cash Power purchase of Le 625 was successful.', '09:18', unread: true),
     _Note(Icons.verified_user_outlined, 'New login', 'Your account was opened on a new device.', 'Yesterday'),
     _Note(Icons.credit_card_outlined, 'Virtual card ready', 'Your virtual card is ready to use online.', 'Mon'),
   ];

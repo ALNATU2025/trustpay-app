@@ -48,6 +48,14 @@ class TpGradients {
     stops: [0.0, 0.5, 1.0],
   );
 
+  /// Deep navy to royal blue, for balance cards and hero panels.
+  static const premium = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFF071B44), Color(0xFF0A3FB0), Color(0xFF1E6BFF)],
+    stops: [0.0, 0.62, 1.0],
+  );
+
   static const success = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,

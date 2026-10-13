@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import '../theme/app_theme.dart';
 import 'motion.dart';
 
-/// The small "Illustrative data · All amounts in NGN" line from the designs.
+/// The small "Illustrative data · All amounts in Leones (SLE)" line from the designs.
 /// Set to false before release.
 const bool kShowIllustrativeNote = true;
 
@@ -260,7 +260,7 @@ class IllustrativeNote extends StatelessWidget {
       padding: EdgeInsets.only(top: 12),
       child: Center(
         child: Text(
-          'Illustrative data · All amounts in NGN',
+          'Illustrative data · All amounts in Leones (SLE)',
           style: TextStyle(fontSize: 12, color: TpColors.muted),
         ),
       ),

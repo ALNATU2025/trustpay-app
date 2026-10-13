@@ -1,3 +1,5 @@
+import 'dart:ui' show FontFeature;
+
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
@@ -6,6 +8,7 @@ import '../widgets/account_header.dart';
 import '../utils/nav.dart';
 import '../widgets/common.dart';
 import '../widgets/motion.dart';
+import '../widgets/premium.dart';
 import 'flows/flows.dart';
 
 class _Txn {
@@ -19,9 +22,9 @@ class _Txn {
 
 // Sample data from the design. Replace with data from your API.
 const _transactions = [
-  _Txn('From Chidi Okafor', 'Bank transfer · 10:24', 25000, Icons.south_west),
-  _Txn('Ikeja Electric', 'Bill payment · 09:18', -12500, Icons.flash_on_outlined),
-  _Txn('To Tolu Adebayo', 'Bank transfer · Yesterday', -8000, Icons.north_east),
+  _Txn('From Mohamed Sesay', 'Bank transfer · 10:24', 1250, Icons.south_west),
+  _Txn('EDSA Cash Power', 'Bill payment · 09:18', -625, Icons.flash_on_outlined),
+  _Txn('To Fatmata Conteh', 'Bank transfer · Yesterday', -400, Icons.north_east),
 ];
 
 class _Essential {
@@ -36,12 +39,8 @@ class _Essential {
 final _essentials = <_Essential>[
   _Essential(Icons.account_balance_outlined, 'Transfer', TpTone.blue,
       (c) => openScreen(c, const SendBankScreen())),
-  _Essential(Icons.smartphone_outlined, 'Airtime/data', TpTone.purple,
-      (c) => openScreen(c, const AirtimeDataScreen())),
   _Essential(Icons.flash_on_outlined, 'Pay bills', TpTone.amber,
       (c) => openScreen(c, const PayBillScreen())),
-  _Essential(Icons.tv_outlined, 'TV & internet', TpTone.rose,
-      (c) => openScreen(c, const PayBillScreen(initialCategory: 1))),
   _Essential(Icons.credit_card_outlined, 'Cards', TpTone.teal,
       (c) => openScreen(c, const CardsScreen())),
 ];
@@ -59,7 +58,7 @@ class HomeTab extends StatefulWidget {
 
 class _HomeTabState extends State<HomeTab> {
   bool _hidden = false;
-  static const _balance = 248500.0;
+  static const _balance = 12450.0;
 
   @override
   Widget build(BuildContext context) {
@@ -99,30 +98,23 @@ class _HomeTabState extends State<HomeTab> {
           ),
         ),
         const SizedBox(height: 8),
-        SizedBox(
-          height: 104,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            clipBehavior: Clip.none,
-            children: [
-              for (var i = 0; i < _essentials.length; i++)
-                Padding(
-                  padding: const EdgeInsets.only(right: 12),
-                  child: SizedBox(
-                    width: 112,
-                    child: FadeSlideIn(
-                      delay: Duration(milliseconds: 220 + i * 60),
-                      child: _EssentialTile(
-                        icon: _essentials[i].icon,
-                        label: _essentials[i].label,
-                        tone: _essentials[i].tone,
-                        onTap: () => _essentials[i].open(context),
-                      ),
-                    ),
+        Row(
+          children: [
+            for (var i = 0; i < _essentials.length; i++) ...[
+              if (i > 0) const SizedBox(width: 12),
+              Expanded(
+                child: FadeSlideIn(
+                  delay: Duration(milliseconds: 220 + i * 60),
+                  child: _EssentialTile(
+                    icon: _essentials[i].icon,
+                    label: _essentials[i].label,
+                    tone: _essentials[i].tone,
+                    onTap: () => _essentials[i].open(context),
                   ),
                 ),
+              ),
             ],
-          ),
+          ],
         ),
         const SizedBox(height: 20),
         FadeSlideIn(
@@ -215,7 +207,7 @@ class _HomeTabState extends State<HomeTab> {
             padding: EdgeInsets.only(top: 16),
             child: Center(
               child: Text(
-                'Illustrative account · All amounts in NGN',
+                'Illustrative account · All amounts in Leones (SLE)',
                 style: TextStyle(fontSize: 12, color: TpColors.muted),
               ),
             ),
@@ -242,111 +234,80 @@ class _BalanceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const balanceStyle = TextStyle(fontSize: 34, fontWeight: FontWeight.w800, color: Colors.white);
-    return Container(
-      decoration: BoxDecoration(
-        gradient: TpGradients.primary,
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: TpShadows.glow,
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(28),
-        child: Stack(
-          children: [
-            // Soft decorative circles so the card feels like a real bank card.
-            Positioned(
-              right: -40,
-              top: -50,
-              child: Container(
-                width: 170,
-                height: 170,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white.withOpacity(0.08),
+    const balanceStyle = TextStyle(
+      fontSize: 34,
+      fontWeight: FontWeight.w800,
+      letterSpacing: -0.5,
+      color: Colors.white,
+      fontFeatures: [FontFeature.tabularFigures()],
+    );
+    return PremiumPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const GoldChip(),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Text('Available balance', style: TextStyle(fontSize: 14, color: Colors.white70)),
+              ),
+              IconButton(
+                tooltip: hidden ? 'Show balance' : 'Hide balance',
+                visualDensity: VisualDensity.compact,
+                onPressed: onToggle,
+                icon: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 200),
+                  child: Icon(
+                    hidden ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                    key: ValueKey(hidden),
+                    color: Colors.white,
+                  ),
                 ),
               ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 250),
+              child: hidden
+                  ? const Text('Le ••••••', key: ValueKey('hidden'), style: balanceStyle)
+                  : CountUpText(
+                      key: const ValueKey('shown'),
+                      value: balance,
+                      format: (v) => formatLeone(v),
+                      style: balanceStyle,
+                    ),
             ),
-            Positioned(
-              right: 40,
-              bottom: -70,
-              child: Container(
-                width: 150,
-                height: 150,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white.withOpacity(0.06),
-                ),
+          ),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.14),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: const Text(
+              'TrustPay account · 0123454821',
+              style: TextStyle(fontSize: 12, letterSpacing: 0.2, color: Colors.white),
+            ),
+          ),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              Expanded(
+                child: _CardAction(icon: Icons.north_east, label: 'Send money', onTap: onSend),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text('Available balance', style: TextStyle(fontSize: 14, color: Colors.white70)),
-                      IconButton(
-                        tooltip: hidden ? 'Show balance' : 'Hide balance',
-                        visualDensity: VisualDensity.compact,
-                        onPressed: onToggle,
-                        icon: AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 200),
-                          child: Icon(
-                            hidden ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                            key: ValueKey(hidden),
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 250),
-                    child: hidden
-                        ? const Text('₦ ••••••', key: ValueKey('hidden'), style: balanceStyle)
-                        : CountUpText(
-                            key: const ValueKey('shown'),
-                            value: balance,
-                            format: (v) => formatNaira(v),
-                            style: balanceStyle,
-                          ),
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.16),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: const Text(
-                          'TrustPay account · 0123454821',
-                          style: TextStyle(fontSize: 12, color: Colors.white),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _CardAction(icon: Icons.north_east, label: 'Send money', onTap: onSend),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _CardAction(icon: Icons.add, label: 'Add money', onTap: onAdd),
-                      ),
-                    ],
-                  ),
-                ],
+              const SizedBox(width: 12),
+              Expanded(
+                child: _CardAction(icon: Icons.add, label: 'Add money', onTap: onAdd),
               ),
-            ),
-          ],
-        ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -464,7 +425,7 @@ class _TxnRow extends StatelessWidget {
               ),
             ),
             Text(
-              formatNaira(txn.amount, showSign: true),
+              formatLeone(txn.amount, showSign: true),
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w700,

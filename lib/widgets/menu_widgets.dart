@@ -212,7 +212,7 @@ class MenuGroup extends StatelessWidget {
   }
 }
 
-/// Initials in a circle, e.g. "AO" for "Ada Okafor".
+/// Initials in a circle, e.g. "AO" for "Aminata Kamara".
 class Avatar extends StatelessWidget {
   const Avatar({super.key, required this.name, this.size = 56, this.light = false});
 

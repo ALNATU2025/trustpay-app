@@ -10,6 +10,7 @@ import '../../widgets/common.dart';
 import '../../widgets/flow_widgets.dart';
 import '../../widgets/step_scaffold.dart';
 import 'funding_screens.dart';
+import 'mobile_money_screens.dart';
 import 'receipt_screen.dart';
 
 /// Add money 1/3: choose a funding method.
@@ -21,19 +22,23 @@ class AddMoneyScreen extends StatefulWidget {
 }
 
 class _AddMoneyScreenState extends State<AddMoneyScreen> {
-  bool _bankTransfer = true;
+  /// 0 bank transfer, 1 mobile money, 2 debit card.
+  int _method = 0;
 
   void _continue() {
-    if (!_bankTransfer) {
-      openScreen(context, const FundByCardScreen());
-      return;
+    switch (_method) {
+      case 1:
+        openScreen(context, const MobileMoneyScreen(send: false));
+      case 2:
+        openScreen(context, const FundByCardScreen());
+      default:
+        openScreen(context, const TransferDetailsScreen());
     }
-    openScreen(context, const TransferDetailsScreen());
   }
 
   @override
   Widget build(BuildContext context) {
-    final method = _bankTransfer ? 'bank transfer' : 'debit card';
+    final method = const ['bank transfer', 'mobile money', 'debit card'][_method];
     return StepScaffold(
       eyebrow: 'ADD MONEY · FROM HOME / SERVICES',
       counter: '01 / 03',
@@ -50,23 +55,31 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
         children: [
           AmountBanner(
             label: 'Current available balance',
-            value: formatNaira(kAccountBalance),
+            value: formatLeone(kAccountBalance),
           ),
           const SizedBox(height: 16),
           SelectTile(
             icon: Icons.account_balance_outlined,
             title: 'Bank transfer',
-            subtitle: 'Transfer from any Nigerian bank · No TrustPay fee',
-            selected: _bankTransfer,
-            onTap: () => setState(() => _bankTransfer = true),
+            subtitle: 'From any Sierra Leone bank · No TrustPay fee',
+            selected: _method == 0,
+            onTap: () => setState(() => _method = 0),
+          ),
+          const SizedBox(height: 12),
+          SelectTile(
+            icon: Icons.phone_android_outlined,
+            title: 'Mobile money',
+            subtitle: 'Orange Money, Afrimoney or Qmoney',
+            selected: _method == 1,
+            onTap: () => setState(() => _method = 1),
           ),
           const SizedBox(height: 12),
           SelectTile(
             icon: Icons.credit_card_outlined,
             title: 'Debit card',
-            subtitle: 'Fund with a Nigerian debit card · Fees shown before payment',
-            selected: !_bankTransfer,
-            onTap: () => setState(() => _bankTransfer = false),
+            subtitle: 'Fund with a Sierra Leone debit card · Fees shown before payment',
+            selected: _method == 2,
+            onTap: () => setState(() => _method = 2),
           ),
           const SizedBox(height: 16),
           const InfoBanner(
@@ -87,7 +100,7 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
 class TransferDetailsScreen extends StatelessWidget {
   const TransferDetailsScreen({super.key});
 
-  static const double _example = 50000;
+  static const double _example = 2500;
 
   @override
   Widget build(BuildContext context) {
@@ -133,8 +146,8 @@ class TransferDetailsScreen extends StatelessWidget {
             rows: [
               ('Account name', kAccountName),
               ('Bank', 'TrustPay'),
-              ('Example transfer', formatNaira(_example)),
-              ('TrustPay fee', formatNaira(0)),
+              ('Example transfer', formatLeone(_example)),
+              ('TrustPay fee', formatLeone(0)),
             ],
           ),
           const SizedBox(height: 12),
@@ -147,7 +160,7 @@ class TransferDetailsScreen extends StatelessWidget {
                 Text(
                   '1. Open your other bank’s app.\n'
                   '2. Select TrustPay and enter this account number.\n'
-                  '3. Confirm Ada Okafor, enter ₦50,000 and send.',
+                  '3. Confirm Aminata Kamara, enter Le 2,500 and send.',
                   style: TextStyle(fontSize: 14, height: 1.5, color: TpColors.muted),
                 ),
               ],
@@ -179,10 +192,10 @@ class MoneyReceivedScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final rows = <(String, String)>[
-      ('From', '$kAccountName · GTBank'),
+      ('From', '$kAccountName · Rokel Commercial Bank'),
       ('To', 'TrustPay · $kAccountNumber'),
-      ('Amount credited', formatNaira(amount)),
-      ('TrustPay fee', formatNaira(0)),
+      ('Amount credited', formatLeone(amount)),
+      ('TrustPay fee', formatLeone(0)),
       ('Reference', reference),
       ('Received at', formatDateTime(receivedAt)),
     ];
@@ -211,7 +224,7 @@ class MoneyReceivedScreen extends StatelessWidget {
       child: Column(
         children: [
           ResultHeader(
-            headline: '${formatNaira(amount)} added',
+            headline: '${formatLeone(amount)} added',
             detail: 'Your bank transfer has arrived and is ready to use.',
           ),
           const SizedBox(height: 20),
@@ -219,7 +232,7 @@ class MoneyReceivedScreen extends StatelessWidget {
           const SizedBox(height: 12),
           AmountBanner(
             label: 'Available balance after credit',
-            value: formatNaira(kAccountBalance + amount),
+            value: formatLeone(kAccountBalance + amount),
             background: TpColors.greenTint,
             labelColor: TpColors.green,
             valueColor: TpColors.navy,

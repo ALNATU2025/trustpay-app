@@ -235,7 +235,7 @@ class _ElectricityScreenState extends State<ElectricityScreen> {
               label: 'Payment amount',
               controller: _amount,
               hint: '0.00',
-              prefixText: '₦',
+              prefixText: 'Le ',
               allowDecimal: true,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               onChanged: (_) => setState(() {}),
@@ -255,7 +255,7 @@ class _ElectricityScreenState extends State<ElectricityScreen> {
             ),
             const SizedBox(height: 14),
             Text(
-              'Fee ${formatNaira(BillDraft.fee)} · Total debit ${formatNaira(_amountValue + BillDraft.fee)}\n'
+              'Fee ${formatLeone(BillDraft.fee)} · Total debit ${formatLeone(_amountValue + BillDraft.fee)}\n'
               '${_prepaid ? 'Your electricity token will appear on the receipt.' : 'Your payment will be applied to your account.'}',
               style: const TextStyle(fontSize: 13, height: 1.4, color: TpColors.muted),
             ),
@@ -300,7 +300,7 @@ class _ConfirmBillScreenState extends State<ConfirmBillScreen> {
       title: 'Confirm bill payment',
       headerLabel: 'Cancel',
       onHeaderAction: () => goHome(context),
-      primaryLabel: 'Pay ${formatNaira(d.total)}',
+      primaryLabel: 'Pay ${formatLeone(d.total)}',
       onPrimary: _pin.length == 4 ? _pay : null,
       secondaryLabel: 'Edit payment',
       onSecondary: () => Navigator.maybePop(context),
@@ -308,8 +308,8 @@ class _ConfirmBillScreenState extends State<ConfirmBillScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           AmountBanner(
-            label: 'Total debit · includes ${formatNaira(BillDraft.fee)} fee',
-            value: formatNaira(d.total),
+            label: 'Total debit · includes ${formatLeone(BillDraft.fee)} fee',
+            value: formatLeone(d.total),
           ),
           const SizedBox(height: 12),
           DetailsCard(
@@ -317,9 +317,9 @@ class _ConfirmBillScreenState extends State<ConfirmBillScreen> {
               ('Provider', '${d.provider} · ${d.typeLabel}'),
               ('Customer', _titleCase(d.customer)),
               ('Meter number', d.meter),
-              ('Amount / fee', '${formatNaira(d.amount)} / ${formatNaira(BillDraft.fee)}'),
+              ('Amount / fee', '${formatLeone(d.amount)} / ${formatLeone(BillDraft.fee)}'),
               ('Token delivery', d.phone),
-              ('Balance after', formatNaira(kAccountBalance - d.total)),
+              ('Balance after', formatLeone(kAccountBalance - d.total)),
             ],
           ),
           const SizedBox(height: 20),
@@ -362,8 +362,8 @@ class BillSuccessScreen extends StatelessWidget {
   final String reference;
   final String token;
 
-  /// Sample rate (naira per kWh) for the units line. Your vendor returns real units.
-  static const double _rate = 238.55;
+  /// Sample rate (leone per kWh) for the units line. Your vendor returns real units.
+  static const double _rate = 4.2;
 
   @override
   Widget build(BuildContext context) {
@@ -383,7 +383,7 @@ class BillSuccessScreen extends StatelessWidget {
       child: Column(
         children: [
           ResultHeader(
-            headline: '${formatNaira(draft.amount)} paid',
+            headline: '${formatLeone(draft.amount)} paid',
             detail: '${draft.provider} · ${draft.typeLabel} meter ${draft.meter}',
           ),
           const SizedBox(height: 20),
@@ -409,7 +409,7 @@ class BillSuccessScreen extends StatelessWidget {
             rows: [
               ('Customer', _titleCase(draft.customer)),
               ('Units purchased', '$units kWh'),
-              ('Total / fee', '${formatNaira(draft.total)} / ${formatNaira(BillDraft.fee)}'),
+              ('Total / fee', '${formatLeone(draft.total)} / ${formatLeone(BillDraft.fee)}'),
               ('Reference', reference),
             ],
           ),
@@ -419,7 +419,7 @@ class BillSuccessScreen extends StatelessWidget {
             background: TpColors.greenTint,
             accent: TpColors.green,
             textColor: TpColors.green,
-            text: 'Token sent by SMS · Balance ${formatNaira(kAccountBalance - draft.total)}',
+            text: 'Token sent by SMS · Balance ${formatLeone(kAccountBalance - draft.total)}',
           ),
         ],
       ),

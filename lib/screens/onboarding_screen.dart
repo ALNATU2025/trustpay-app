@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../utils/format.dart';
 import '../widgets/common.dart';
+import '../widgets/hero_art.dart';
+import '../widgets/motion.dart';
 import '../widgets/step_scaffold.dart';
 
 /// Screens 3 to 5: the three swipeable onboarding pages.
@@ -64,7 +66,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         StepScaffold(
           counter: '02 / 03',
           title: 'Life’s essentials, sorted.',
-          subtitle: 'Top up your phone, pay your bills and shop online. All from one secure account.',
+          subtitle: 'Top up your phone, pay for power and TV, and shop online. All from one secure account.',
           onBack: _back,
           primaryLabel: 'Next',
           onPrimary: _next,
@@ -110,95 +112,13 @@ class _PageOne extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return const Column(
       children: [
-        _Panel(
-          child: Column(
-            children: [
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: TpColors.primary,
-                  borderRadius: BorderRadius.circular(22),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Your money. In one place.',
-                      style: TextStyle(fontSize: 14, color: Colors.white70),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      formatNaira(248500),
-                      style: const TextStyle(
-                        fontSize: 30,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(22),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Hello, Ada 👋',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        const IconBox(icon: Icons.south_west, size: 40),
-                        const SizedBox(width: 12),
-                        const Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Money received',
-                                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-                              ),
-                              SizedBox(height: 2),
-                              Text(
-                                'Instant account notification',
-                                style: TextStyle(fontSize: 13, color: TpColors.muted),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Text(
-                          formatNaira(25000, showSign: true, decimals: 0),
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            color: TpColors.green,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    const Divider(height: 1, color: TpColors.border),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
-        const InfoBanner(text: 'A clear balance, simple transfers and receipts you can always find.'),
-        const SizedBox(height: 24),
-        const PageDots(count: 3, index: 0),
+        OnboardingHero(photoAsset: 'assets/images/onboarding_1.jpg', scene: PhoneScene()),
+        SizedBox(height: 16),
+        InfoBanner(text: 'A clear balance, simple transfers and receipts you can always find.'),
+        SizedBox(height: 24),
+        PageDots(count: 3, index: 0),
       ],
     );
   }
@@ -248,6 +168,8 @@ class _PageTwo extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
+        const OnboardingHero(photoAsset: 'assets/images/onboarding_2.jpg', scene: ServicesScene()),
+        const SizedBox(height: 16),
         const _Panel(
           child: Column(
             children: [
@@ -260,7 +182,7 @@ class _PageTwo extends StatelessWidget {
               _FeatureTile(
                 icon: Icons.flash_on_outlined,
                 title: 'Bill payments',
-                subtitle: 'Electricity, TV and more',
+                subtitle: 'EDSA Cash Power, TV and more',
               ),
               SizedBox(height: 12),
               _FeatureTile(
@@ -287,33 +209,7 @@ class _PageThree extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        _Panel(
-          color: TpColors.greenTint,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-            child: Row(
-              children: [
-                const _MiniTerminal(),
-                const SizedBox(width: 20),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
-                      Text('Ada Stores', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-                      SizedBox(height: 12),
-                      Text('24 payments', style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800)),
-                      SizedBox(height: 8),
-                      Text(
-                        'One easy way to get paid.',
-                        style: TextStyle(fontSize: 14, color: TpColors.green),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
+        const OnboardingHero(photoAsset: 'assets/images/onboarding_3.jpg', scene: PosScene()),
         const SizedBox(height: 16),
         Container(
           width: double.infinity,
@@ -339,69 +235,6 @@ class _PageThree extends StatelessWidget {
         const SizedBox(height: 24),
         const PageDots(count: 3, index: 2),
       ],
-    );
-  }
-}
-
-class _MiniTerminal extends StatelessWidget {
-  const _MiniTerminal();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 108,
-      height: 154,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0A1F3F),
-        borderRadius: BorderRadius.circular(22),
-      ),
-      child: Column(
-        children: [
-          Container(
-            height: 70,
-            width: double.infinity,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: const Color(0xFFE9F0FE),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              formatNaira(18500, decimals: 0),
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w800,
-                color: TpColors.primary,
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              for (var i = 0; i < 3; i++) ...[
-                if (i > 0) const SizedBox(width: 6),
-                Expanded(
-                  child: Container(
-                    height: 18,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF6EE7B7),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  ),
-                ),
-              ],
-            ],
-          ),
-          const SizedBox(height: 8),
-          Container(
-            height: 4,
-            decoration: BoxDecoration(
-              color: const Color(0xFF6B7690),
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

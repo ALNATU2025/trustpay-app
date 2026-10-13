@@ -52,7 +52,7 @@ class PosTab extends StatelessWidget {
                         ),
                         SizedBox(height: 8),
                         Text(
-                          '₦186,400 collected today',
+                          'Le 9,320 collected today',
                           style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: TpColors.green),
                         ),
                       ],
@@ -68,7 +68,7 @@ class PosTab extends StatelessWidget {
         SelectTile(
           icon: Icons.payments_outlined,
           title: 'Next settlement',
-          subtitle: '₦172,800.00 · Today at 4:00 PM',
+          subtitle: 'Le 8,640.00 · Today at 4:00 PM',
           onTap: () => openScreen(context, const SettlementScreen()),
         ),
         const SizedBox(height: 24),
@@ -81,7 +81,7 @@ class PosTab extends StatelessWidget {
             padding: EdgeInsets.only(top: 16),
             child: Center(
               child: Text(
-                'Illustrative data · All amounts in NGN',
+                'Illustrative data · All amounts in Leones (SLE)',
                 style: TextStyle(fontSize: 12, color: TpColors.muted),
               ),
             ),
@@ -137,7 +137,7 @@ class _StoreTerminalScreenState extends State<StoreTerminalScreen> {
       subtitle: '$kBusinessName · Existing terminal TP-2048',
       headerLabel: 'Done',
       onHeaderAction: () => goHome(context),
-      primaryLabel: 'View settlement · ${formatNaira(172800)}',
+      primaryLabel: 'View settlement · ${formatLeone(8640)}',
       onPrimary: () => openScreen(context, const SettlementScreen()),
       secondaryLabel: 'Back to POS dashboard',
       onSecondary: () => Navigator.maybePop(context),
@@ -175,7 +175,7 @@ class _StoreTerminalScreenState extends State<StoreTerminalScreen> {
                       ),
                       const SizedBox(height: 4),
                       const Text(
-                        'Connection: 4G · Location: Ikeja',
+                        'Connection: 4G · Location: Freetown',
                         style: TextStyle(fontSize: 13, color: TpColors.primary),
                       ),
                     ],
@@ -195,7 +195,7 @@ class _StoreTerminalScreenState extends State<StoreTerminalScreen> {
             child: Row(
               children: [
                 const Expanded(
-                  child: _Stat(label: 'Today’s collections', value: '₦186,400'),
+                  child: _Stat(label: 'Today’s collections', value: 'Le 9,320'),
                 ),
                 const SizedBox(width: 12),
                 const Expanded(
@@ -218,21 +218,21 @@ class _StoreTerminalScreenState extends State<StoreTerminalScreen> {
                   icon: Icons.credit_card_outlined,
                   title: 'Card payment',
                   subtitle: '•• 4821 · 12:42 · Successful',
-                  trailing: '₦18,500.00',
+                  trailing: 'Le 925.00',
                   trailingColor: TpColors.green,
                 ),
                 ActivityRow(
                   icon: Icons.credit_card_outlined,
                   title: 'Card payment',
                   subtitle: '•• 0934 · 12:36 · Successful',
-                  trailing: '₦7,200.00',
+                  trailing: 'Le 360.00',
                   trailingColor: TpColors.green,
                 ),
                 ActivityRow(
                   icon: Icons.account_balance_outlined,
                   title: 'Bank transfer',
-                  subtitle: 'Chidi O. · 12:30 · Successful',
-                  trailing: '₦25,000.00',
+                  subtitle: 'Mohamed S. · 12:30 · Successful',
+                  trailing: 'Le 1,250.00',
                   trailingColor: TpColors.green,
                 ),
               ],
@@ -304,7 +304,7 @@ class SettlementScreen extends StatelessWidget {
         children: [
           AmountBanner(
             label: 'Net settlement · Not yet credited',
-            value: formatNaira(172800),
+            value: formatLeone(8640),
             background: TpColors.greenTint,
             labelColor: TpColors.green,
             valueColor: TpColors.navy,
@@ -313,8 +313,8 @@ class SettlementScreen extends StatelessWidget {
           DetailsCard(
             rows: [
               ('Settlement ID', 'TP-SET-111026-4821'),
-              ('Eligible gross', '${formatNaira(173500)} · 21 payments'),
-              ('Processing fees', '−${formatNaira(700)}'),
+              ('Eligible gross', '${formatLeone(8675)} · 21 payments'),
+              ('Processing fees', '−${formatLeone(35)}'),
               ('Destination', '$kAccountName · TrustPay •• ${kAccountNumber.substring(6)}'),
             ],
           ),
@@ -332,21 +332,21 @@ class SettlementScreen extends StatelessWidget {
                   icon: Icons.credit_card_outlined,
                   title: 'Card · POS-2048-1242',
                   subtitle: '12:42 · Eligible',
-                  trailing: '₦18,500.00',
+                  trailing: 'Le 925.00',
                   trailingColor: TpColors.green,
                 ),
                 ActivityRow(
                   icon: Icons.credit_card_outlined,
                   title: 'Card · POS-2048-1236',
                   subtitle: '12:36 · Eligible',
-                  trailing: '₦7,200.00',
+                  trailing: 'Le 360.00',
                   trailingColor: TpColors.green,
                 ),
                 ActivityRow(
                   icon: Icons.account_balance_outlined,
                   title: 'Transfer · POS-2048-1230',
-                  subtitle: 'Chidi O. · 12:30 · Eligible',
-                  trailing: '₦25,000.00',
+                  subtitle: 'Mohamed S. · 12:30 · Eligible',
+                  trailing: 'Le 1,250.00',
                   trailingColor: TpColors.green,
                 ),
               ],
@@ -354,8 +354,8 @@ class SettlementScreen extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           const InfoBanner(
-            text: '₦12,900 from 3 later payments rolls into the next batch. '
-                '₦173,500 + ₦12,900 = ₦186,400 collected today.',
+            text: 'Le 645 from 3 later payments rolls into the next batch. '
+                'Le 8,675 + Le 645 = Le 9,320 collected today.',
           ),
         ],
       ),
@@ -378,12 +378,12 @@ class _RequestTerminalScreenState extends State<RequestTerminalScreen> {
     'Services',
     'Other',
   ];
-  static const _states = ['Lagos', 'Abuja (FCT)', 'Ogun', 'Oyo', 'Rivers', 'Kano'];
+  static const _states = ['Freetown', 'Western Area Rural', 'Bo', 'Makeni', 'Kenema', 'Koidu'];
 
   final _form = GlobalKey<FormState>();
   final _name = TextEditingController(text: kBusinessName);
-  final _address = TextEditingController(text: '24 Allen Avenue, Ikeja');
-  final _city = TextEditingController(text: 'Ikeja');
+  final _address = TextEditingController(text: '12 Siaka Stevens Street, Freetown');
+  final _city = TextEditingController(text: 'Freetown');
   final _contact = TextEditingController(text: '$kAccountName · $kPhone');
   String _category = _categories.first;
   String _state = _states.first;
@@ -488,7 +488,7 @@ class ReviewTerminalScreen extends StatelessWidget {
       title: 'Review your request',
       headerLabel: 'Cancel',
       onHeaderAction: () => goHome(context),
-      primaryLabel: 'Confirm request · ${formatNaira(draft.total)}',
+      primaryLabel: 'Confirm request · ${formatLeone(draft.total)}',
       // TODO: submit the request and charge the account with your POS API.
       onPrimary: () => replaceScreen(
         context,
@@ -501,7 +501,7 @@ class ReviewTerminalScreen extends StatelessWidget {
         children: [
           AmountBanner(
             label: 'Total payable now · illustrative fees',
-            value: formatNaira(draft.total),
+            value: formatLeone(draft.total),
           ),
           const SizedBox(height: 12),
           DetailsCard(
@@ -509,9 +509,9 @@ class ReviewTerminalScreen extends StatelessWidget {
               ('Business', '${draft.businessName} · $shortCategory'),
               ('Deliver to', '${draft.address}, ${draft.state}'),
               ('Contact', draft.contact),
-              ('Terminal deposit', '${formatNaira(TerminalDraft.deposit)} · refundable'),
-              ('Delivery fee', '${formatNaira(TerminalDraft.deliveryFee)} · non-refundable'),
-              ('Account after', formatNaira(kAccountBalance - draft.total)),
+              ('Terminal deposit', '${formatLeone(TerminalDraft.deposit)} · refundable'),
+              ('Delivery fee', '${formatLeone(TerminalDraft.deliveryFee)} · non-refundable'),
+              ('Account after', formatLeone(kAccountBalance - draft.total)),
             ],
           ),
           const SizedBox(height: 16),
@@ -569,8 +569,8 @@ class TerminalSubmittedScreen extends StatelessWidget {
               ('Status', 'Under review'),
               (
                 'Deposit + delivery',
-                '${formatNaira(TerminalDraft.deposit, decimals: 0)} + '
-                    '${formatNaira(TerminalDraft.deliveryFee, decimals: 0)} paid',
+                '${formatLeone(TerminalDraft.deposit, decimals: 0)} + '
+                    '${formatLeone(TerminalDraft.deliveryFee, decimals: 0)} paid',
               ),
               ('Expected delivery', '$expected · after approval'),
             ],

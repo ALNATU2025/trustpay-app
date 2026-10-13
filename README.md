@@ -64,7 +64,7 @@ Inside the app (`lib/screens/flows/`), each flow is opened from Home or Services
   Check them against Figma Dev Mode and adjust `app_theme.dart` if needed.
 - All data is sample data from the design. Look for the `TODO` comments for
   where to call your API (sign up, OTP, identity check, login, Face ID).
-- The "Illustrative data · All amounts in NGN" lines come from the mockups.
+- The "Illustrative data · All amounts in Leones (SLE)" lines come from the mockups.
   Set `kShowIllustrativeNote = false` in `lib/widgets/common.dart` to remove them.
 - The POS tab hub (terminal card, next settlement, request button) was not in the
   exported screens. The POS hub only links the POS screens.
@@ -83,6 +83,14 @@ Inside the app (`lib/screens/flows/`), each flow is opened from Home or Services
   debit card flow, use your payment provider's secure card form for real payments.
 - Balances after each payment are calculated from one sample balance
   (`kAccountBalance` in `lib/data/sample_data.dart`), so each flow starts from
-  ₦248,500 as in the designs. Connect a real balance and update it after payments.
+  Le 12,450 as sample data. Connect a real balance and update it after payments.
 - The welcome photo was cropped from your screenshot, so it is low resolution.
   Replace `assets/images/welcome_hero.jpg` with the original image.
+
+## Sierra Leone setup
+
+- Currency is Leones (`Le`), formatted by `formatLeone` in `lib/utils/format.dart`.
+- Payment options: Sierra Leone banks, mobile money (Orange Money, Africell Money, QMoney), EDSA Cash Power, DStv/StarTimes, Orange/Africell/Qcell airtime. All partner names, fees and tariffs are sample data in `lib/data/sample_data.dart`; confirm them before release.
+- Home "Everyday essentials" shows only Transfer, Pay bills and Cards.
+- Onboarding pictures: drop licensed photos at `assets/images/onboarding_1.jpg`, `onboarding_2.jpg` and `onboarding_3.jpg` (about 1000x700 px). If a file is missing, an animated illustration is shown instead.
+- Text size is clamped and the layout is capped at 480 px wide in `lib/main.dart`, so Android and iOS phones look consistent.
