@@ -67,11 +67,11 @@ class VirtualCard {
   final double issuancePaid;
   final bool frozen;
 
-  VirtualCard copyWith({bool? frozen}) => VirtualCard(
+  VirtualCard copyWith({bool? frozen, double? balance}) => VirtualCard(
         last4: last4,
         expiry: expiry,
         holder: holder,
-        balance: balance,
+        balance: balance ?? this.balance,
         issuancePaid: issuancePaid,
         frozen: frozen ?? this.frozen,
       );

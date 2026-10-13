@@ -249,3 +249,107 @@ class _TickPainter extends CustomPainter {
   @override
   bool shouldRepaint(_TickPainter old) => old.progress != progress;
 }
+
+/// A short burst of confetti that falls once. Sits behind a success tick.
+class ConfettiBurst extends StatefulWidget {
+  const ConfettiBurst({super.key});
+
+  @override
+  State<ConfettiBurst> createState() => _ConfettiBurstState();
+}
+
+class _Particle {
+  _Particle(this.angle, this.speed, this.size, this.color, this.spin);
+
+  final double angle;
+  final double speed;
+  final double size;
+  final Color color;
+  final double spin;
+}
+
+class _ConfettiBurstState extends State<ConfettiBurst> with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final List<_Particle> _particles;
+
+  static const _colors = [
+    Color(0xFF0560E4),
+    Color(0xFF2B7BFF),
+    Color(0xFF22B866),
+    Color(0xFFFFB020),
+    Color(0xFFD6336C),
+    Color(0xFF7A3EF0),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    final random = math.Random(7);
+    _particles = List.generate(34, (i) {
+      return _Particle(
+        -math.pi / 2 + (random.nextDouble() - 0.5) * math.pi * 1.5,
+        90 + random.nextDouble() * 120,
+        4 + random.nextDouble() * 5,
+        _colors[random.nextInt(_colors.length)],
+        random.nextDouble() * 6,
+      );
+    });
+    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 1900))
+      ..forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: RepaintBoundary(
+        child: AnimatedBuilder(
+          animation: _controller,
+          builder: (context, _) => CustomPaint(
+            painter: _ConfettiPainter(_particles, _controller.value),
+            size: Size.infinite,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ConfettiPainter extends CustomPainter {
+  _ConfettiPainter(this.particles, this.t);
+
+  final List<_Particle> particles;
+  final double t;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final origin = Offset(size.width / 2, size.height / 2);
+    // Fast at first, then drifting down.
+    final eased = Curves.easeOutCubic.transform(t);
+    for (final p in particles) {
+      final dx = math.cos(p.angle) * p.speed * eased;
+      final dy = math.sin(p.angle) * p.speed * eased + 120 * t * t;
+      final fade = t < 0.7 ? 1.0 : (1 - (t - 0.7) / 0.3).clamp(0.0, 1.0);
+      final paint = Paint()..color = p.color.withOpacity(fade);
+      canvas.save();
+      canvas.translate(origin.dx + dx, origin.dy + dy);
+      canvas.rotate(p.spin + t * 6);
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromCenter(center: Offset.zero, width: p.size, height: p.size * 0.55),
+          const Radius.circular(1.5),
+        ),
+        paint,
+      );
+      canvas.restore();
+    }
+  }
+
+  @override
+  bool shouldRepaint(_ConfettiPainter old) => old.t != t;
+}

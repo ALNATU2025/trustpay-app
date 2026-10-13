@@ -9,6 +9,8 @@ import '../../widgets/common.dart';
 import '../../widgets/flow_widgets.dart';
 import '../../widgets/otp_input.dart';
 import '../../widgets/step_scaffold.dart';
+import 'funding_screens.dart';
+import 'physical_card_screens.dart';
 
 /// The blue virtual card artwork.
 class VirtualCardView extends StatelessWidget {
@@ -107,8 +109,7 @@ class _CardsScreenState extends State<CardsScreen> {
               : 'Request physical card',
           onPrimary: () {
             if (_tab == 1) {
-              // Physical cards are not in the designs yet.
-              showMessage(context, 'Physical cards are coming soon.');
+              openScreen(context, const OrderPhysicalCardScreen());
             } else if (hasCard) {
               openScreen(context, const CardReadyScreen());
             } else {
@@ -376,8 +377,7 @@ class _CardReadyScreenState extends State<CardReadyScreen> {
           onBack: () => goHome(context),
           onHeaderAction: () => goHome(context),
           primaryLabel: 'Fund card',
-          // Card funding is not in the designs yet.
-          onPrimary: () => showMessage(context, 'Card funding is coming soon.'),
+          onPrimary: () => openScreen(context, const FundCardScreen()),
           secondaryLabel: 'Back to home',
           onSecondary: () => goHome(context),
           child: Column(

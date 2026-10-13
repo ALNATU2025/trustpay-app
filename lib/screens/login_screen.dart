@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
+import '../utils/nav.dart';
 import '../widgets/step_scaffold.dart';
+import 'auth/forgot_password_screens.dart';
 
 /// Screen 11: returning user login.
 class LoginScreen extends StatefulWidget {
@@ -67,7 +69,7 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
             const SizedBox(height: 4),
             TextButton(
-              onPressed: () {},
+              onPressed: () => openScreen(context, const ForgotPasswordScreen()),
               style: TextButton.styleFrom(
                 padding: EdgeInsets.zero,
                 minimumSize: const Size(48, 40),

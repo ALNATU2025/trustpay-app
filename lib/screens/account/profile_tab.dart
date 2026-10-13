@@ -38,23 +38,27 @@ class ProfileTab extends StatelessWidget {
               MenuTile(
                 icon: Icons.person_outline,
                 title: 'Personal details',
+                tone: TpTone.blue,
                 subtitle: 'Name, phone, email',
                 onTap: () => openScreen(context, const PersonalDetailsScreen()),
               ),
               MenuTile(
                 icon: Icons.shield_outlined,
                 title: 'Security & PIN',
+                tone: TpTone.teal,
                 subtitle: 'Password, PIN, Face ID',
                 onTap: () => openScreen(context, const SecurityScreen()),
               ),
               MenuTile(
                 icon: Icons.notifications_none,
                 title: 'Notifications',
+                tone: TpTone.amber,
                 onTap: () => openScreen(context, const NotificationsScreen()),
               ),
               MenuTile(
                 icon: Icons.credit_card_outlined,
                 title: 'Cards',
+                tone: TpTone.purple,
                 subtitle: 'Virtual and physical',
                 onTap: () => openScreen(context, const CardsScreen()),
               ),
@@ -70,12 +74,14 @@ class ProfileTab extends StatelessWidget {
               MenuTile(
                 icon: Icons.receipt_long_outlined,
                 title: 'Transactions',
+                tone: TpTone.blue,
                 subtitle: 'History and receipts',
                 onTap: () => openScreen(context, const TransactionHistoryScreen()),
               ),
               MenuTile(
                 icon: Icons.desktop_windows_outlined,
                 title: 'POS services',
+                tone: TpTone.green,
                 subtitle: 'Terminals and settlements',
                 onTap: () => onOpenTab(2),
               ),
@@ -91,12 +97,14 @@ class ProfileTab extends StatelessWidget {
               MenuTile(
                 icon: Icons.headset_mic_outlined,
                 title: 'Help & support',
+                tone: TpTone.rose,
                 subtitle: 'Chat, call or read the FAQ',
                 onTap: () => openScreen(context, const SupportScreen()),
               ),
               MenuTile(
                 icon: Icons.info_outline,
                 title: 'About TrustPay',
+                tone: TpTone.blue,
                 onTap: () => showAboutDialog(
                   context: context,
                   applicationName: 'TrustPay',
@@ -116,6 +124,7 @@ class ProfileTab extends StatelessWidget {
                 MenuTile(
                   icon: Icons.admin_panel_settings_outlined,
                   title: 'Admin console',
+                tone: TpTone.purple,
                   subtitle: 'Users, approvals, volume',
                   onTap: () => openScreen(context, const AdminDashboardScreen()),
                 ),

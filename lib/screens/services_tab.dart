@@ -6,24 +6,26 @@ import '../utils/nav.dart';
 import '../widgets/common.dart';
 import '../widgets/motion.dart';
 import 'flows/flows.dart';
+import 'support/support_screen.dart';
 
 class _Service {
-  const _Service(this.icon, this.title, this.subtitle);
+  const _Service(this.icon, this.title, this.subtitle, this.tone);
 
   final IconData icon;
   final String title;
   final String subtitle;
+  final TpTone tone;
 }
 
 const _services = [
-  _Service(Icons.send_outlined, 'Send money', 'To a TrustPay user'),
-  _Service(Icons.add, 'Add money', 'Fund your account'),
-  _Service(Icons.account_balance_outlined, 'Bank transfer', 'To any bank'),
-  _Service(Icons.smartphone_outlined, 'Airtime & data', 'Stay connected'),
-  _Service(Icons.receipt_long_outlined, 'Bill payments', 'Power, TV & more'),
-  _Service(Icons.credit_card_outlined, 'Virtual card', 'For online payments'),
-  _Service(Icons.wallet_outlined, 'Physical card', 'Pay wherever you go'),
-  _Service(Icons.desktop_windows_outlined, 'POS services', 'Collect & manage sales'),
+  _Service(Icons.send_outlined, 'Send money', 'To a TrustPay user', TpTone.blue),
+  _Service(Icons.add, 'Add money', 'Fund your account', TpTone.green),
+  _Service(Icons.account_balance_outlined, 'Bank transfer', 'To any bank', TpTone.blue),
+  _Service(Icons.smartphone_outlined, 'Airtime & data', 'Stay connected', TpTone.purple),
+  _Service(Icons.receipt_long_outlined, 'Bill payments', 'Power, TV & more', TpTone.amber),
+  _Service(Icons.credit_card_outlined, 'Virtual card', 'For online payments', TpTone.teal),
+  _Service(Icons.wallet_outlined, 'Physical card', 'Pay wherever you go', TpTone.rose),
+  _Service(Icons.desktop_windows_outlined, 'POS services', 'Collect & manage sales', TpTone.green),
 ];
 
 /// Screen 13: All services.
@@ -43,6 +45,7 @@ class _ServicesTabState extends State<ServicesTab> {
   void _open(_Service s) {
     switch (s.title) {
       case 'Send money':
+        openScreen(context, const SendToUserScreen());
       case 'Bank transfer':
         openScreen(context, const SendBankScreen());
       case 'Add money':
@@ -128,7 +131,7 @@ class _ServicesTabState extends State<ServicesTab> {
           borderRadius: BorderRadius.circular(18),
           child: InkWell(
             borderRadius: BorderRadius.circular(18),
-            onTap: () {},
+            onTap: () => openScreen(context, const SupportChatScreen()),
             child: const Padding(
               padding: EdgeInsets.all(16),
               child: Row(
@@ -186,7 +189,7 @@ class _ServiceCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  IconBox(icon: service.icon, size: 40),
+                  IconBox(icon: service.icon, size: 40, tone: service.tone),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [

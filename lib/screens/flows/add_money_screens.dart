@@ -9,6 +9,7 @@ import '../../utils/nav.dart';
 import '../../widgets/common.dart';
 import '../../widgets/flow_widgets.dart';
 import '../../widgets/step_scaffold.dart';
+import 'funding_screens.dart';
 import 'receipt_screen.dart';
 
 /// Add money 1/3: choose a funding method.
@@ -24,8 +25,7 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
 
   void _continue() {
     if (!_bankTransfer) {
-      // Only the bank transfer path is in the designs so far.
-      showMessage(context, 'Debit card funding is coming soon.');
+      openScreen(context, const FundByCardScreen());
       return;
     }
     openScreen(context, const TransferDetailsScreen());

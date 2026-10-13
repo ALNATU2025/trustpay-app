@@ -32,6 +32,12 @@ Inside the app (`lib/screens/flows/`), each flow is opened from Home or Services
 | Cards | your cards, create virtual card, card ready | Services: Virtual card, Physical card |
 | Transactions | history (search and filters), receipt | Home: See all |
 | POS | store terminal, settlement, request, review, submitted | POS tab |
+| TV & internet bills | provider, number, package, confirm, success | Home: Pay bills. Services: Bill payments |
+| Send to a TrustPay user | number, amount, confirm, success | Home: Send money. Services: Send money |
+| Fund with a card | amount and card, confirm with bank code, success | Add money: Debit card |
+| Fund virtual card | amount, confirm, success | Your card: Fund card |
+| Physical card | delivery details, confirm, order placed | Cards: Physical card |
+| Reset password | contact, code, new password, done | Login: Forgot password |
 | Account | profile card, personal details, security & PIN, notifications | Account tab, menu |
 | Help & support | FAQ search, live chat, call / email, send a message | Account tab, menu |
 | Admin | dashboard, users, approvals | Account tab (staff), menu |
@@ -70,8 +76,11 @@ Inside the app (`lib/screens/flows/`), each flow is opened from Home or Services
 - `kIsAdmin` in `lib/data/sample_data.dart` shows the Admin console. Set it from
   your login response, and make your server check the staff role on every admin
   request. Hiding the menu item does not protect the data.
-- Send money (to a TrustPay user) uses the bank transfer screens, and physical
-  cards and TV / internet bills have no designs yet, so they show "coming soon".
+- TV, internet, physical card, card funding, send to a TrustPay user and password
+  reset were added without Figma designs, so check them against your design. They
+  share the confirm and success steps in `lib/screens/flows/generic_flow.dart`.
+- Package prices, fees, customer lookups and bank codes are sample values. In the
+  debit card flow, use your payment provider's secure card form for real payments.
 - Balances after each payment are calculated from one sample balance
   (`kAccountBalance` in `lib/data/sample_data.dart`), so each flow starts from
   ₦248,500 as in the designs. Connect a real balance and update it after payments.

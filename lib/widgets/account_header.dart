@@ -23,18 +23,23 @@ class AccountHeader extends StatelessWidget {
         const SizedBox(width: 10),
         const TpLogo(height: 44),
         const SizedBox(width: 10),
-        const Expanded(
+        Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
+              const Text(
                 'PERSONAL ACCOUNT',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(fontSize: 11, letterSpacing: 0.4, color: TpColors.muted),
               ),
-              SizedBox(height: 2),
-              Text('Hello, Ada', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 2),
+              Text(
+                '${_greeting()}, Ada',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+              ),
             ],
           ),
         ),
@@ -66,6 +71,13 @@ class AccountHeader extends StatelessWidget {
       ],
     );
   }
+}
+
+String _greeting() {
+  final hour = DateTime.now().hour;
+  if (hour < 12) return 'Good morning';
+  if (hour < 17) return 'Good afternoon';
+  return 'Good evening';
 }
 
 class _RoundButton extends StatelessWidget {

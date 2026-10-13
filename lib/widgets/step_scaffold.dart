@@ -22,7 +22,11 @@ class StepScaffold extends StatelessWidget {
     this.onBack,
     this.headerLabel = 'Help',
     this.onHeaderAction,
+    this.primaryLoading = false,
   });
+
+  /// Shows a spinner on the main button while waiting for your API.
+  final bool primaryLoading;
 
   final String eyebrow;
   final String? counter;
@@ -125,7 +129,7 @@ class StepScaffold extends StatelessWidget {
               ),
               if (headerAtBottom) header,
               const SizedBox(height: 12),
-              PrimaryButton(label: primaryLabel, onPressed: onPrimary),
+              PrimaryButton(label: primaryLabel, onPressed: onPrimary, loading: primaryLoading),
               if (secondaryLabel != null) ...[
                 const SizedBox(height: 8),
                 SecondaryButton(label: secondaryLabel!, onPressed: onSecondary),

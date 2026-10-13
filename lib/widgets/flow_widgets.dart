@@ -112,7 +112,21 @@ class SuccessBadge extends StatelessWidget {
   const SuccessBadge({super.key});
 
   @override
-  Widget build(BuildContext context) => const AnimatedCheck(size: 72);
+  Widget build(BuildContext context) {
+    // AnimatedCheck is 1.5x its size wide, so 108 for size 72.
+    return SizedBox(
+      width: 108,
+      height: 108,
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.center,
+        children: const [
+          Positioned(left: -120, right: -120, top: -76, height: 260, child: ConfettiBurst()),
+          AnimatedCheck(size: 72),
+        ],
+      ),
+    );
+  }
 }
 
 /// Big centred result block: badge, headline and a muted line.

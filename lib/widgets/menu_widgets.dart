@@ -105,7 +105,11 @@ class MenuTile extends StatelessWidget {
     this.onTap,
     this.trailing,
     this.danger = false,
+    this.tone,
   });
+
+  /// Colour family for the icon tile.
+  final TpTone? tone;
 
   final IconData icon;
   final String title;
@@ -125,7 +129,7 @@ class MenuTile extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         child: Row(
           children: [
-            IconBox(icon: icon, size: 40, color: color),
+            IconBox(icon: icon, size: 40, color: color, tone: danger ? null : tone),
             const SizedBox(width: 14),
             Expanded(
               child: Column(

@@ -24,6 +24,28 @@ const _transactions = [
   _Txn('To Tolu Adebayo', 'Bank transfer · Yesterday', -8000, Icons.north_east),
 ];
 
+class _Essential {
+  const _Essential(this.icon, this.label, this.tone, this.open);
+
+  final IconData icon;
+  final String label;
+  final TpTone tone;
+  final void Function(BuildContext) open;
+}
+
+final _essentials = <_Essential>[
+  _Essential(Icons.account_balance_outlined, 'Transfer', TpTone.blue,
+      (c) => openScreen(c, const SendBankScreen())),
+  _Essential(Icons.smartphone_outlined, 'Airtime/data', TpTone.purple,
+      (c) => openScreen(c, const AirtimeDataScreen())),
+  _Essential(Icons.flash_on_outlined, 'Pay bills', TpTone.amber,
+      (c) => openScreen(c, const PayBillScreen())),
+  _Essential(Icons.tv_outlined, 'TV & internet', TpTone.rose,
+      (c) => openScreen(c, const PayBillScreen(initialCategory: 1))),
+  _Essential(Icons.credit_card_outlined, 'Cards', TpTone.teal,
+      (c) => openScreen(c, const CardsScreen())),
+];
+
 /// Screen 12: Home.
 class HomeTab extends StatefulWidget {
   const HomeTab({super.key, required this.onOpenTab});
@@ -52,7 +74,7 @@ class _HomeTabState extends State<HomeTab> {
             hidden: _hidden,
             balance: _balance,
             onToggle: () => setState(() => _hidden = !_hidden),
-            onSend: () => openScreen(context, const SendBankScreen()),
+            onSend: () => showSendOptions(context),
             onAdd: () => openScreen(context, const AddMoneyScreen()),
           ),
         ),
@@ -77,41 +99,30 @@ class _HomeTabState extends State<HomeTab> {
           ),
         ),
         const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: FadeSlideIn(
-                delay: const Duration(milliseconds: 220),
-                child: _EssentialTile(
-                  icon: Icons.account_balance_outlined,
-                  label: 'Transfer',
-                  onTap: () => openScreen(context, const SendBankScreen()),
+        SizedBox(
+          height: 104,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            clipBehavior: Clip.none,
+            children: [
+              for (var i = 0; i < _essentials.length; i++)
+                Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: SizedBox(
+                    width: 112,
+                    child: FadeSlideIn(
+                      delay: Duration(milliseconds: 220 + i * 60),
+                      child: _EssentialTile(
+                        icon: _essentials[i].icon,
+                        label: _essentials[i].label,
+                        tone: _essentials[i].tone,
+                        onTap: () => _essentials[i].open(context),
+                      ),
+                    ),
+                  ),
                 ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: FadeSlideIn(
-                delay: const Duration(milliseconds: 280),
-                child: _EssentialTile(
-                  icon: Icons.smartphone_outlined,
-                  label: 'Airtime/data',
-                  onTap: () => openScreen(context, const AirtimeDataScreen()),
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: FadeSlideIn(
-                delay: const Duration(milliseconds: 340),
-                child: _EssentialTile(
-                  icon: Icons.receipt_long_outlined,
-                  label: 'Pay bills',
-                  onTap: () => openScreen(context, const PayBillScreen()),
-                ),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
         const SizedBox(height: 20),
         FadeSlideIn(
@@ -382,11 +393,17 @@ class _CardAction extends StatelessWidget {
 }
 
 class _EssentialTile extends StatelessWidget {
-  const _EssentialTile({required this.icon, required this.label, required this.onTap});
+  const _EssentialTile({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.tone = TpTone.blue,
+  });
 
   final IconData icon;
   final String label;
   final VoidCallback onTap;
+  final TpTone tone;
 
   @override
   Widget build(BuildContext context) {
@@ -408,7 +425,7 @@ class _EssentialTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  IconBox(icon: icon, size: 40),
+                  IconBox(icon: icon, size: 40, tone: tone),
                   const SizedBox(height: 14),
                   Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
                 ],
@@ -434,7 +451,7 @@ class _TxnRow extends StatelessWidget {
       children: [
         Row(
           children: [
-            IconBox(icon: txn.icon, size: 40),
+            IconBox(icon: txn.icon, size: 40, tone: credit ? TpTone.green : TpTone.blue),
             const SizedBox(width: 12),
             Expanded(
               child: Column(

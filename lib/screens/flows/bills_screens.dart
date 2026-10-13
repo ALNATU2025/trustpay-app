@@ -10,10 +10,14 @@ import '../../widgets/common.dart';
 import '../../widgets/flow_widgets.dart';
 import '../../widgets/otp_input.dart';
 import '../../widgets/step_scaffold.dart';
+import 'tv_internet_screens.dart';
 
 /// Bills 1/4: category and provider.
 class PayBillScreen extends StatefulWidget {
-  const PayBillScreen({super.key});
+  const PayBillScreen({super.key, this.initialCategory = 0});
+
+  /// 0 Electricity, 1 TV, 2 Internet.
+  final int initialCategory;
 
   @override
   State<PayBillScreen> createState() => _PayBillScreenState();
@@ -23,9 +27,9 @@ class _PayBillScreenState extends State<PayBillScreen> {
   static const _categories = ['Electricity', 'TV', 'Internet'];
   static const _icons = [Icons.flash_on_outlined, Icons.tv_outlined, Icons.wifi];
 
-  int _category = 0;
+  late int _category = widget.initialCategory;
   String _query = '';
-  BillProvider _selected = kElectricityProviders.first;
+  late BillProvider _selected = _providers.first;
 
   List<BillProvider> get _providers => switch (_category) {
         1 => kTvProviders,
@@ -35,8 +39,7 @@ class _PayBillScreenState extends State<PayBillScreen> {
 
   void _continue() {
     if (_category != 0) {
-      // Only the electricity flow is in the designs so far.
-      showMessage(context, 'TV and internet payments are coming soon.');
+      openScreen(context, TvInternetScreen(provider: _selected, isTv: _category == 1));
       return;
     }
     openScreen(context, ElectricityScreen(providerName: _selected.name));

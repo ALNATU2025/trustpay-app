@@ -7,7 +7,7 @@ class TpColors {
   static const primary = Color(0xFF0560E4);
   static const navy = Color(0xFF14233F);
   static const muted = Color(0xFF74829B);
-  static const background = Color(0xFFF4F7FD);
+  static const background = Color(0xFFF3F6FC);
   static const tint = Color(0xFFEAF1FE);
   static const border = Color(0xFFE3EAF5);
   static const dot = Color(0xFFDDE5F2);
@@ -15,6 +15,28 @@ class TpColors {
   static const greenTint = Color(0xFFE8F6EE);
   static const splash = Color(0xFFF5F5F5);
   static const danger = Color(0xFFD64545);
+}
+
+/// Colour-coded service tones (icon tiles on Home, Services and menus), so
+/// each kind of action is quick to spot.
+enum TpTone {
+  blue(Color(0xFF0560E4), Color(0xFFF2F7FF), Color(0xFFDCE8FD)),
+  purple(Color(0xFF7A3EF0), Color(0xFFF7F2FF), Color(0xFFE6D9FD)),
+  amber(Color(0xFFC77700), Color(0xFFFFF9EC), Color(0xFFFFE9C2)),
+  teal(Color(0xFF0A8F8A), Color(0xFFEDFAF8), Color(0xFFCDF1ED)),
+  green(Color(0xFF0E8F47), Color(0xFFEDF9F2), Color(0xFFCFEEDC)),
+  rose(Color(0xFFD6336C), Color(0xFFFFF1F6), Color(0xFFFFD9E6));
+
+  const TpTone(this.fg, this.light, this.dark);
+
+  /// Icon colour.
+  final Color fg;
+
+  /// Top-left of the tile gradient.
+  final Color light;
+
+  /// Bottom-right of the tile gradient.
+  final Color dark;
 }
 
 /// Brand gradients and soft shadows used across the app.

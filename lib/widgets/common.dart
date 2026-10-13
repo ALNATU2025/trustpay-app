@@ -32,21 +32,25 @@ class PrimaryButton extends StatelessWidget {
     required this.label,
     required this.onPressed,
     this.trailingIcon,
+    this.loading = false,
   });
 
   final String label;
   final VoidCallback? onPressed;
   final IconData? trailingIcon;
 
+  /// Shows a spinner and ignores taps (use while waiting for your API).
+  final bool loading;
+
   @override
   Widget build(BuildContext context) {
-    final enabled = onPressed != null;
+    final enabled = onPressed != null && !loading;
     final radius = BorderRadius.circular(16);
     return PressScale(
       enabled: enabled,
       scale: 0.97,
       child: AnimatedOpacity(
-        opacity: enabled ? 1 : 0.4,
+        opacity: (onPressed != null) ? 1 : 0.4,
         duration: const Duration(milliseconds: 200),
         child: Container(
           width: double.infinity,
@@ -68,22 +72,33 @@ class PrimaryButton extends StatelessWidget {
                     }
                   : null,
               child: Center(
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      label,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                      ),
-                    ),
-                    if (trailingIcon != null) ...[
-                      const SizedBox(width: 10),
-                      Icon(trailingIcon, size: 20, color: Colors.white),
-                    ],
-                  ],
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 200),
+                  child: loading
+                      ? const SizedBox(
+                          key: ValueKey('loading'),
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
+                        )
+                      : Row(
+                          key: const ValueKey('label'),
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              label,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                            ),
+                            if (trailingIcon != null) ...[
+                              const SizedBox(width: 10),
+                              Icon(trailingIcon, size: 20, color: Colors.white),
+                            ],
+                          ],
+                        ),
                 ),
               ),
             ),
@@ -173,26 +188,38 @@ class InfoBanner extends StatelessWidget {
 }
 
 class IconBox extends StatelessWidget {
-  const IconBox({super.key, required this.icon, this.size = 44, this.color = TpColors.primary});
+  const IconBox({
+    super.key,
+    required this.icon,
+    this.size = 44,
+    this.color = TpColors.primary,
+    this.tone,
+  });
 
   final IconData icon;
   final double size;
   final Color color;
 
+  /// A colour family for the tile. Without it the tile is the default blue.
+  final TpTone? tone;
+
   @override
   Widget build(BuildContext context) {
+    final t = tone;
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFFF2F7FF), Color(0xFFDCE8FD)],
+          colors: t == null
+              ? const [Color(0xFFF2F7FF), Color(0xFFDCE8FD)]
+              : [t.light, t.dark],
         ),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(size * 0.32),
       ),
-      child: Icon(icon, color: color, size: size * 0.5),
+      child: Icon(icon, color: t?.fg ?? color, size: size * 0.5),
     );
   }
 }
@@ -353,7 +380,11 @@ class TpField extends StatefulWidget {
     this.allowDecimal = false,
     this.prefixText,
     this.onChanged,
+    this.formatters,
   });
+
+  /// Extra input formatters (card number, expiry). Replaces digitsOnly/allowDecimal.
+  final List<TextInputFormatter>? formatters;
 
   final String label;
   final TextEditingController? controller;
@@ -407,11 +438,12 @@ class _TpFieldState extends State<TpField> {
           onTap: widget.onTap,
           onChanged: widget.onChanged,
           maxLength: widget.maxLength,
-          inputFormatters: widget.digitsOnly
+          inputFormatters: widget.formatters ??
+              (widget.digitsOnly
               ? [FilteringTextInputFormatter.digitsOnly]
               : widget.allowDecimal
                   ? [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))]
-                  : null,
+                  : null),
           style: const TextStyle(fontSize: 15),
           decoration: tpDecoration(
             hint: widget.hint,
