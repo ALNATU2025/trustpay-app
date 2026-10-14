@@ -106,7 +106,7 @@ class AdminDashboardScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       for (var i = 0; i < _week.length; i++)
-                        Expanded(child: _Bar(label: _week[i].$1, value: _week[i].$2, max: 1100, index: i)),
+                        Expanded(child: _Bar(label: _week[i].$1, value: _week[i].$2.toDouble(), max: 1100, index: i)),
                     ],
                   ),
                 ),
