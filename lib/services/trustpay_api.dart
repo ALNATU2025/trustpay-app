@@ -353,6 +353,23 @@ class TrustPayApi {
 
   Future<PosOverview> posOverview() async => PosOverview.fromJson(await _get('/pos/overview'));
 
+  /// Phone POS: asks a customer to pay by mobile money. Returns the charge (status Pending + ussdCode).
+  Future<Map<String, dynamic>> createPosCharge({
+    required double amount,
+    required String number,
+    required String provider,
+    String note = '',
+    required String idempotencyKey,
+  }) async =>
+      asMap((await _post('/pos/charges', {
+        'amount': amount,
+        'number': number,
+        if (provider.isNotEmpty) 'provider': provider,
+        if (note.isNotEmpty) 'note': note,
+      }, key: idempotencyKey))['charge']);
+
+  Future<Map<String, dynamic>> posCharge(String id) async => asMap((await _get('/pos/charges/$id'))['charge']);
+
   Future<SettlementData> nextSettlement() async => SettlementData.fromJson(await _get('/pos/settlements/next'));
 
   Future<Settlement> settlement(String id) async => Settlement.fromJson(asMap((await _get('/pos/settlements/$id'))['settlement']));

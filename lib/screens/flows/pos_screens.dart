@@ -15,6 +15,7 @@ import '../../widgets/menu_widgets.dart';
 import '../../widgets/step_scaffold.dart';
 import '../support/support_screen.dart';
 import 'generic_flow.dart';
+import 'pos_charge_screen.dart';
 
 /// "Mon 12 Oct" style window for the expected delivery of a terminal.
 String _expectedWindow(DateTime? from, DateTime? to) {
@@ -28,8 +29,11 @@ String _expectedWindow(DateTime? from, DateTime? to) {
 
 String _capitalize(String s) => s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';
 
-IconData _recentIcon(String kind) =>
-    kind == 'card' ? Icons.credit_card_outlined : Icons.account_balance_outlined;
+IconData _recentIcon(String kind) => switch (kind) {
+      'card' => Icons.credit_card_outlined,
+      'momo' => Icons.phone_android,
+      _ => Icons.account_balance_outlined,
+    };
 
 /// POS tab: the terminal, today's collections and the next settlement, or the status of a pending
 /// terminal request.
@@ -56,6 +60,16 @@ class PosTab extends StatelessWidget {
               const Text(
                 'Collect payments and manage your terminals.',
                 style: TextStyle(fontSize: 15, color: TpColors.muted),
+              ),
+              const SizedBox(height: 16),
+              SelectTile(
+                icon: Icons.phone_android,
+                title: 'Charge a customer',
+                subtitle: 'Collect by mobile money from your phone, no terminal needed',
+                onTap: () async {
+                  await openScreen(context, const ChargeCustomerScreen());
+                  await reload();
+                },
               ),
               const SizedBox(height: 16),
               ..._content(context, overview, reload),
