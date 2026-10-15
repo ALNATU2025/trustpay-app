@@ -490,6 +490,7 @@ class Catalog {
     required this.districts,
     required this.topics,
     required this.support,
+    this.onlineFunding = false,
   });
 
   factory Catalog.fromJson(Map<String, dynamic> j) {
@@ -509,6 +510,7 @@ class Catalog {
       districts: asStrList(terminal['districts']),
       topics: asStrList(j['topics']),
       support: SupportInfo.fromJson(asMap(j['support'])),
+      onlineFunding: asStr(asMap(j['features'])['fundingMode']) == 'checkout',
     );
   }
 
@@ -526,6 +528,9 @@ class Catalog {
   final List<String> districts;
   final List<String> topics;
   final SupportInfo support;
+
+  /// True on a live server: money is added on the provider's secure page (card, bank, mobile money).
+  final bool onlineFunding;
 }
 
 // ---------------------------------------------------------------- lookups

@@ -241,6 +241,14 @@ class TrustPayApi {
   }) =>
       _pay('/payments/funding/card', {'amount': amount, 'cardLast4': cardLast4, 'brand': brand}, idempotencyKey);
 
+  /// Starts an online top-up. On a live server the result has a `checkoutUrl` to open (card, bank or
+  /// mobile money are paid on the provider's page and the balance rises when it confirms).
+  /// On a sandbox server the money is added at once and the url is null.
+  Future<(PaymentResult, String?)> startCheckout({required double amount, required String idempotencyKey}) async {
+    final json = await _post('/payments/funding/checkout', {'amount': amount}, key: idempotencyKey);
+    return (PaymentResult.fromJson(json), asStrOrNull(json['checkoutUrl']));
+  }
+
   Future<PaymentResult> payElectricity({
     required String provider,
     required bool prepaid,

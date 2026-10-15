@@ -12,7 +12,7 @@ import '../utils/keys.dart';
 /// `flutter run --dart-define=API_BASE_URL=https://<service>.onrender.com/api`
 const String kApiBaseUrl = String.fromEnvironment(
   'API_BASE_URL',
-  defaultValue: 'https://trustpay-backend.onrender.com/api',
+  defaultValue: 'https://trustpay-backend-zkiv.onrender.com/api',
 );
 
 /// An error answer from the server, or a network problem (status 0).
