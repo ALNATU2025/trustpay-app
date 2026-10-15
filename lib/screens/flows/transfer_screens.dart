@@ -14,10 +14,6 @@ import '../../widgets/step_scaffold.dart';
 import 'generic_flow.dart';
 import 'receipt_screen.dart';
 
-/// `•• 1234` for the last four characters of an account number.
-String _maskTail(String number) =>
-    number.length <= 4 ? number : '•• ${number.substring(number.length - 4)}';
-
 /// Transfer 1/3: choose bank, account, amount.
 class SendBankScreen extends StatefulWidget {
   const SendBankScreen({super.key});
@@ -153,7 +149,7 @@ class _SendBankScreenState extends State<SendBankScreen> {
           ('Amount', formatLeone(draft.amount)),
           ('Transfer fee', formatLeone(draft.fee)),
           ('Note', draft.note.isEmpty ? '—' : draft.note),
-          ('From', 'TrustPay · ${_maskTail(appState.me.accountNumber)}'),
+          ('From', 'TrustPay wallet'),
           ('Balance after', formatLeone(appState.balance - draft.total)),
         ],
         onPay: (pin, key) => api.transferBank(

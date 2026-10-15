@@ -176,7 +176,6 @@ class _HomeTabState extends State<HomeTab> {
             builder: (context, _) => _BalanceCard(
             hidden: _hidden,
             balance: appState.balance,
-            accountNumber: appState.user?.accountNumber ?? '',
             onToggle: () => setState(() => _hidden = !_hidden),
             onSend: () => showSendOptions(context),
             onAdd: () => openScreen(context, const AddMoneyScreen()),
@@ -309,7 +308,6 @@ class _BalanceCard extends StatelessWidget {
   const _BalanceCard({
     required this.hidden,
     required this.balance,
-    required this.accountNumber,
     required this.onToggle,
     required this.onSend,
     required this.onAdd,
@@ -317,7 +315,6 @@ class _BalanceCard extends StatelessWidget {
 
   final bool hidden;
   final double balance;
-  final String accountNumber;
   final VoidCallback onToggle;
   final VoidCallback onSend;
   final VoidCallback onAdd;
@@ -371,18 +368,6 @@ class _BalanceCard extends StatelessWidget {
                       format: (v) => formatLeone(v),
                       style: balanceStyle,
                     ),
-            ),
-          ),
-          const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.14),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Text(
-              'TrustPay account · $accountNumber',
-              style: const TextStyle(fontSize: 12, letterSpacing: 0.2, color: Colors.white),
             ),
           ),
           const SizedBox(height: 18),

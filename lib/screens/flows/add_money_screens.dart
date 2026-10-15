@@ -27,7 +27,7 @@ class AddMoneyScreen extends StatefulWidget {
 }
 
 class _AddMoneyScreenState extends State<AddMoneyScreen> {
-  /// 0 bank transfer, 1 mobile money, 2 debit card.
+  /// 0 mobile money, 1 debit card.
   int _method = 0;
 
   void _continue() {
@@ -37,11 +37,9 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
     }
     switch (_method) {
       case 1:
-        openScreen(context, const MobileMoneyScreen(send: false));
-      case 2:
         openScreen(context, const FundByCardScreen());
       default:
-        openScreen(context, const TransferDetailsScreen());
+        openScreen(context, const MobileMoneyScreen(send: false));
     }
   }
 
@@ -52,7 +50,7 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
         eyebrow: 'ADD MONEY · FROM HOME / SERVICES',
         counter: '01 / 02',
         title: 'Add money',
-        subtitle: 'Pay securely with a card, a bank account or mobile money.',
+        subtitle: 'Pay securely with mobile money or a card.',
         headerLabel: 'Cancel',
         onHeaderAction: () => goHome(context),
         primaryLabel: 'Continue',
@@ -66,7 +64,7 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
             const SizedBox(height: 16),
             SelectTile(
               icon: Icons.lock_outline,
-              title: 'Card, bank or mobile money',
+              title: 'Mobile money or card',
               subtitle: 'You choose how to pay on the next secure page',
               selected: true,
               onTap: () {},
@@ -82,12 +80,12 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
   @override
   Widget build(BuildContext context) {
     if (appState.cat.onlineFunding) return _onlineHub();
-    final method = const ['bank transfer', 'mobile money', 'debit card'][_method];
+    final method = const ['mobile money', 'debit card'][_method];
     return ListenableBuilder(
       listenable: appState,
       builder: (context, _) => StepScaffold(
         eyebrow: 'ADD MONEY · FROM HOME / SERVICES',
-        counter: '01 / 03',
+        counter: '01 / 02',
         title: 'Add money',
         subtitle: 'Choose how you’d like to fund your account.',
         headerLabel: 'Cancel',
@@ -105,31 +103,19 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
             ),
             const SizedBox(height: 16),
             SelectTile(
-              icon: Icons.account_balance_outlined,
-              title: 'Bank transfer',
-              subtitle: 'From any Sierra Leone bank · No TrustPay fee',
-              selected: _method == 0,
-              onTap: () => setState(() => _method = 0),
-            ),
-            const SizedBox(height: 12),
-            SelectTile(
               icon: Icons.phone_android_outlined,
               title: 'Mobile money',
               subtitle: appState.cat.mobileMoney.join(', '),
-              selected: _method == 1,
-              onTap: () => setState(() => _method = 1),
+              selected: _method == 0,
+              onTap: () => setState(() => _method = 0),
             ),
             const SizedBox(height: 12),
             SelectTile(
               icon: Icons.credit_card_outlined,
               title: 'Debit card',
               subtitle: 'Fund with a debit card · Fees shown before payment',
-              selected: _method == 2,
-              onTap: () => setState(() => _method = 2),
-            ),
-            const SizedBox(height: 16),
-            const InfoBanner(
-              text: 'Your personal TrustPay account number stays the same for future transfers.',
+              selected: _method == 1,
+              onTap: () => setState(() => _method = 1),
             ),
             const SizedBox(height: 16),
             Text(
@@ -138,175 +124,6 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-/// Add money 2/3: show the account number to pay into, then wait for the credit.
-class TransferDetailsScreen extends StatefulWidget {
-  const TransferDetailsScreen({super.key});
-
-  @override
-  State<TransferDetailsScreen> createState() => _TransferDetailsScreenState();
-}
-
-class _TransferDetailsScreenState extends State<TransferDetailsScreen> {
-  static const _pollEvery = Duration(seconds: 5);
-  static const _giveUpAfter = Duration(minutes: 3);
-
-  /// Balance when the screen opened. A higher balance later means money arrived.
-  late final double _startBalance;
-  Timer? _timer;
-  DateTime? _waitStarted;
-  bool _waiting = false;
-  bool _timedOut = false;
-  bool _checking = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _startBalance = appState.balance;
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
-  }
-
-  void _startWaiting() {
-    _timer?.cancel();
-    setState(() {
-      _waiting = true;
-      _timedOut = false;
-    });
-    _waitStarted = DateTime.now();
-    _timer = Timer.periodic(_pollEvery, (_) => _check());
-    _check();
-  }
-
-  Future<void> _check() async {
-    if (_checking || !mounted) return;
-    _checking = true;
-    try {
-      await appState.refreshUser();
-      if (!mounted) return;
-      if (appState.balance > _startBalance) {
-        _timer?.cancel();
-        Txn? latest;
-        try {
-          final page = await api.transactions(limit: 1);
-          if (page.items.isNotEmpty) latest = page.items.first;
-        } catch (_) {
-          // The credit is real; show it even if the receipt cannot be loaded.
-        }
-        if (!mounted) return;
-        replaceScreen(context, MoneyReceivedScreen(amount: appState.balance - _startBalance, txn: latest));
-        return;
-      }
-      final started = _waitStarted;
-      if (started != null && DateTime.now().difference(started) >= _giveUpAfter) {
-        _timer?.cancel();
-        setState(() {
-          _waiting = false;
-          _timedOut = true;
-        });
-      }
-    } finally {
-      _checking = false;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final me = appState.me;
-    final String primaryLabel;
-    final VoidCallback? onPrimary;
-    if (_waiting) {
-      primaryLabel = 'Waiting for your transfer…';
-      onPrimary = null;
-    } else if (_timedOut) {
-      primaryLabel = 'Refresh';
-      onPrimary = _startWaiting;
-    } else {
-      primaryLabel = 'I’ve made the transfer';
-      onPrimary = _startWaiting;
-    }
-    return StepScaffold(
-      eyebrow: 'ADD MONEY',
-      counter: '02 / 03',
-      title: 'Transfer to your account',
-      subtitle: 'Use these details in your other banking app.',
-      headerLabel: 'Done',
-      onHeaderAction: () => goHome(context),
-      primaryLabel: primaryLabel,
-      primaryLoading: _waiting,
-      onPrimary: onPrimary,
-      secondaryLabel: 'Back to home',
-      onSecondary: () => goHome(context),
-      child: Column(
-        children: [
-          AmountBanner(
-            label: 'Your TrustPay account number',
-            value: me.accountNumber,
-            background: TpColors.tint,
-            labelColor: TpColors.muted,
-            valueColor: TpColors.navy,
-            valueSize: 34,
-            child: TpWhiteButton(
-              label: 'Copy account number',
-              icon: Icons.copy_outlined,
-              onPressed: () => copyText(context, me.accountNumber, 'Account number copied.'),
-            ),
-          ),
-          const SizedBox(height: 12),
-          DetailsCard(
-            rows: [
-              ('Account name', me.fullName),
-              ('Bank', 'TrustPay'),
-              ('TrustPay fee', formatLeone(0)),
-            ],
-          ),
-          const SizedBox(height: 12),
-          TpWhiteButton(
-            label: 'Copy account name',
-            icon: Icons.copy_outlined,
-            onPressed: () => copyText(context, me.fullName, 'Account name copied.'),
-          ),
-          const SizedBox(height: 12),
-          const WhiteCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('How to add money', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
-                SizedBox(height: 10),
-                Text(
-                  '1. Open your other bank’s app.\n'
-                  '2. Select TrustPay and enter this account number.\n'
-                  '3. Check that the account name matches yours, then enter an amount and send.',
-                  style: TextStyle(fontSize: 14, height: 1.5, color: TpColors.muted),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          if (_timedOut)
-            const InfoBanner(
-              icon: Icons.hourglass_empty,
-              text: 'Still waiting. Your transfer has not arrived yet. Some banks take longer, so you can '
-                  'close this screen and your balance will update once the money lands. Tap Refresh to check again.',
-            )
-          else if (_waiting)
-            const InfoBanner(
-              icon: Icons.hourglass_empty,
-              text: 'Checking for your transfer. This usually takes a few minutes.',
-            )
-          else
-            const InfoBanner(
-              text: 'Your balance updates only when funds arrive. Most transfers take a few minutes.',
-            ),
-        ],
       ),
     );
   }
@@ -329,7 +146,7 @@ class MoneyReceivedScreen extends StatelessWidget {
     final rows = t != null
         ? receiptRows(t)
         : <(String, String)>[
-            ('To', 'TrustPay · ${appState.me.accountNumber}'),
+            ('To', 'TrustPay wallet'),
             ('Amount credited', formatLeone(credited)),
           ];
     return StepScaffold(

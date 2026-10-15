@@ -18,9 +18,9 @@ class _Service {
 }
 
 const _services = [
-  _Service(Icons.send_outlined, 'Send money', 'To a TrustPay user', TpTone.blue),
-  _Service(Icons.add, 'Add money', 'Fund your account', TpTone.green),
-  _Service(Icons.account_balance_outlined, 'Bank transfer', 'To any bank', TpTone.blue),
+  _Service(Icons.send_outlined, 'Send money', 'To a bank or mobile money', TpTone.blue),
+  _Service(Icons.add, 'Add money', 'Mobile money or card', TpTone.green),
+  _Service(Icons.account_balance_outlined, 'Bank transfer', 'To any Sierra Leone bank', TpTone.blue),
   _Service(Icons.smartphone_outlined, 'Airtime & data', 'Stay connected', TpTone.purple),
   _Service(Icons.receipt_long_outlined, 'Bill payments', 'Power, TV & more', TpTone.amber),
   _Service(Icons.credit_card_outlined, 'Virtual card', 'For online payments', TpTone.teal),
@@ -45,7 +45,7 @@ class _ServicesTabState extends State<ServicesTab> {
   void _open(_Service s) {
     switch (s.title) {
       case 'Send money':
-        openScreen(context, const SendToUserScreen());
+        showSendOptions(context);
       case 'Bank transfer':
         openScreen(context, const SendBankScreen());
       case 'Add money':

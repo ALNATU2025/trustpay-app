@@ -226,39 +226,6 @@ class _ProfileCard extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 14),
-          Container(
-            padding: const EdgeInsets.fromLTRB(14, 6, 6, 6),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Account number', style: TextStyle(fontSize: 12, color: TpColors.muted)),
-                      Text(
-                        me.accountNumber,
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, letterSpacing: 1),
-                      ),
-                    ],
-                  ),
-                ),
-                IconButton(
-                  tooltip: 'Copy account number',
-                  icon: const Icon(Icons.copy_rounded, color: TpColors.primary, size: 20),
-                  onPressed: () {
-                    Clipboard.setData(ClipboardData(text: me.accountNumber));
-                    HapticFeedback.selectionClick();
-                    showMessage(context, 'Account number copied');
-                  },
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );

@@ -51,7 +51,6 @@ class PersonalDetailsScreen extends StatelessWidget {
                   ('Full name', me.fullName),
                   ('Phone number', me.phone),
                   ('Email', me.email.isNotEmpty ? me.email : 'Not added'),
-                  ('Account number', me.accountNumber),
                   if (me.address.isNotEmpty) ('Address', me.address),
                   if (me.businessName.isNotEmpty) ('Business', me.businessName),
                   ('Identity check', me.statusLabel),

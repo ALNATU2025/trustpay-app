@@ -102,7 +102,6 @@ class _AccountReadyScreenState extends State<AccountReadyScreen> {
               builder: (context, _) => Column(
                 children: [
                   _Row('Account name', appState.me.fullName),
-                  _Row('Account number', appState.me.accountNumber),
                   const _Row('Bank', 'TrustPay'),
                   _Row('Opening balance', formatLeone(appState.balance), last: true),
                 ],

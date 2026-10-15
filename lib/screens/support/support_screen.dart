@@ -24,7 +24,7 @@ class _Faq {
 
 List<_Faq> _buildFaqs() => [
       const _Faq('How do I fund my account?',
-          'Go to Home, tap Add money and pick a method. Bank transfers to your TrustPay account number arrive in a few minutes.'),
+          'Go to Home, tap Add money and pay with mobile money or a card. The money arrives in your wallet as soon as the payment is confirmed.'),
       const _Faq('A transfer is still pending. What now?',
           'Pending transfers usually clear within 10 minutes. If it is still pending after that, open the receipt and tap Report a problem with the reference.'),
       const _Faq('How do I get a POS terminal?',
