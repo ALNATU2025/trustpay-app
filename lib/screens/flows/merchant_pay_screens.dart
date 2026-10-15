@@ -1,4 +1,4 @@
-import 'package:barcode/barcode.dart';
+import 'package:barcode/barcode.dart' as bc;
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -45,7 +45,7 @@ class MerchantCodeScreen extends StatelessWidget {
               pw.SizedBox(height: 6),
               pw.Text('with TrustPay', style: const pw.TextStyle(fontSize: 18)),
               pw.SizedBox(height: 28),
-              pw.BarcodeWidget(barcode: Barcode.qrCode(), data: asStr(d['qr']), width: 300, height: 300),
+              pw.BarcodeWidget(barcode: bc.Barcode.qrCode(), data: asStr(d['qr']), width: 300, height: 300),
               pw.SizedBox(height: 28),
               pw.Text('Merchant code', style: const pw.TextStyle(fontSize: 16)),
               pw.Text(code, style: pw.TextStyle(fontSize: 48, fontWeight: pw.FontWeight.bold, letterSpacing: 6)),
