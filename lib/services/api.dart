@@ -183,6 +183,8 @@ class ApiClient {
     final uri = _uri(path, query);
     final encoded = body == null ? null : jsonEncode(body);
 
+    final stopwatch = Stopwatch()..start();
+    debugPrint('[api] -> $method $uri');
     var slowShown = false;
     final slowTimer = Timer(slowAfter, () {
       slowShown = true;
@@ -214,8 +216,10 @@ class ApiClient {
       }
       res = await pending.timeout(timeout);
     } on TimeoutException {
+      debugPrint('[api] !! $method $uri timed out after ${stopwatch.elapsedMilliseconds} ms');
       throw const ApiException(0, 'The server is taking too long to answer. Please try again.', 'TIMEOUT');
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[api] !! $method $uri failed after ${stopwatch.elapsedMilliseconds} ms: $e');
       throw const ApiException(
         0,
         'Cannot reach TrustPay. Check your internet connection and try again.',
@@ -232,6 +236,7 @@ class ApiClient {
       }
     }
 
+    debugPrint('[api] <- ${res.statusCode} $method $uri (${stopwatch.elapsedMilliseconds} ms)');
     dynamic data;
     final text = utf8.decode(res.bodyBytes, allowMalformed: true);
     if (text.isNotEmpty) {
