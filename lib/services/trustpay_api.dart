@@ -368,6 +368,26 @@ class TrustPayApi {
         if (note.isNotEmpty) 'note': note,
       }, key: idempotencyKey))['charge']);
 
+  /// The merchant's permanent code, business name and QR payload.
+  Future<Map<String, dynamic>> posCode() async => _get('/pos/code');
+
+  /// Merchant name for a 6-digit code, or null when there is none.
+  Future<String?> lookupMerchant(String code) => _lookup(() async => asStr((await _post('/lookup/merchant', {'code': code}))['name']));
+
+  Future<PaymentResult> payMerchant({
+    required String code,
+    required double amount,
+    String note = '',
+    required String pin,
+    required String idempotencyKey,
+  }) =>
+      _pay('/payments/pos/pay', {
+        'code': code,
+        'amount': amount,
+        if (note.isNotEmpty) 'note': note,
+        'pin': pin,
+      }, idempotencyKey);
+
   Future<Map<String, dynamic>> posCharge(String id) async => asMap((await _get('/pos/charges/$id'))['charge']);
 
   Future<SettlementData> nextSettlement() async => SettlementData.fromJson(await _get('/pos/settlements/next'));

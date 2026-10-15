@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'merchant_pay_screens.dart';
 import '../../models/models.dart';
 import '../../services/api.dart';
 import '../../services/app_state.dart';
@@ -39,6 +40,15 @@ void showSendOptions(BuildContext context) {
               onTap: () {
                 Navigator.pop(sheetContext);
                 openScreen(context, const MobileMoneyScreen(send: true));
+              },
+            ),
+            MenuTile(
+              icon: Icons.storefront_outlined,
+              title: 'To a merchant',
+              subtitle: 'Scan a QR code or enter a merchant code',
+              onTap: () {
+                Navigator.pop(sheetContext);
+                openScreen(context, const PayMerchantScreen());
               },
             ),
             MenuTile(
