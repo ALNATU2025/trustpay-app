@@ -8,15 +8,19 @@ import 'screens/home_shell.dart';
 import 'screens/identity_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/otp_screen.dart';
+import 'screens/pending_approval_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/welcome_screen.dart';
 import 'services/api.dart';
+import 'services/session_guard.dart';
+import 'services/settings.dart';
 import 'theme/app_theme.dart';
 import 'utils/keys.dart';
 import 'utils/nav.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await appSettings.load();
   // Warm up the connection before the first screen is drawn.
   apiClient.warmUp();
   runApp(const TrustPayApp());
@@ -41,7 +45,7 @@ class TrustPayApp extends StatelessWidget {
         final system = media.textScaler.scale(1.0).clamp(0.9, 1.15).toDouble();
         // On tablets and web, keep the app at phone width in the middle.
         final width = math.min(media.size.width, 480.0);
-        return ColoredBox(
+        final Widget app = ColoredBox(
           color: TpColors.background,
           child: Align(
             alignment: Alignment.topCenter,
@@ -57,6 +61,13 @@ class TrustPayApp extends StatelessWidget {
             ),
           ),
         );
+        return ListenableBuilder(
+          listenable: appSettings,
+          builder: (context, _) => SessionGuard(
+            // Always wrapped (identity filter in normal mode) so switching themes never rebuilds the navigator.
+            child: ColorFiltered(colorFilter: appSettings.dark ? kDarkFilter : kNormalFilter, child: app),
+          ),
+        );
       },
       initialRoute: '/',
       routes: {
@@ -67,6 +78,7 @@ class TrustPayApp extends StatelessWidget {
         '/otp': (_) => const OtpScreen(),
         '/identity': (_) => const IdentityScreen(),
         '/ready': (_) => const AccountReadyScreen(),
+        '/pending': (_) => const PendingApprovalScreen(),
       },
       // Login, Sign up and Home use the swipe transition.
       onGenerateRoute: (settings) {

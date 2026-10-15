@@ -8,6 +8,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import '../../models/models.dart';
 import '../../services/api.dart';
 import '../../services/app_state.dart';
+import '../../services/settings.dart';
 import '../../services/trustpay_api.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
@@ -77,7 +78,7 @@ class MerchantCodeScreen extends StatelessWidget {
                 children: [
                   Text(asStr(d['businessName']), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
                   const SizedBox(height: 16),
-                  QrImageView(data: asStr(d['qr']), size: 220, backgroundColor: Colors.white),
+                  DarkSafe(child: QrImageView(data: asStr(d['qr']), size: 220, backgroundColor: Colors.white)),
                   const SizedBox(height: 12),
                   const Text('Merchant code', style: TextStyle(color: TpColors.muted)),
                   Text(asStr(d['code']),
@@ -129,7 +130,7 @@ class _ScanScreenState extends State<_ScanScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Scan merchant QR')),
-      body: MobileScanner(
+      body: DarkSafe(child: MobileScanner(
         onDetect: _onDetect,
         errorBuilder: (context, error, child) => const Center(
           child: Padding(
@@ -137,7 +138,7 @@ class _ScanScreenState extends State<_ScanScreen> {
             child: Text('Camera is not available. Go back and type the merchant code instead.', textAlign: TextAlign.center),
           ),
         ),
-      ),
+      )),
     );
   }
 }

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 
 import '../../models/models.dart';
@@ -376,6 +378,44 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
     }
   }
 
+  Future<void> _changeTier(_Json u) async {
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
+      builder: (c) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Padding(
+                padding: EdgeInsets.only(left: 6, bottom: 8),
+                child: Text('Set account tier', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+              ),
+              for (final t in _tierNames)
+                ListTile(
+                  title: Text(t, style: const TextStyle(fontWeight: FontWeight.w700)),
+                  trailing: t == asStr(u['tier']) ? const Icon(Icons.check, color: TpColors.primary) : null,
+                  onTap: () => Navigator.pop(c, t),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (picked == null || picked == asStr(u['tier']) || !mounted) return;
+    try {
+      await api.adminSetTier(widget.userId, picked);
+      if (!mounted) return;
+      showMessage(context, 'Tier changed to $picked');
+      setState(() => _gen++);
+    } catch (e) {
+      if (mounted) showMessage(context, errorMessage(e));
+    }
+  }
+
   Future<void> _unlock() async {
     try {
       await api.adminUnlockUser(widget.userId);
@@ -446,6 +486,8 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
               const SizedBox(height: 16),
               if (isAdmin) ...[
                 PrimaryButton(label: 'Credit or debit balance', onPressed: () => _adjust(u)),
+                const SizedBox(height: 8),
+                SecondaryButton(label: 'Change tier (${asStr(u['tier'])})', onPressed: () => _changeTier(u)),
                 const SizedBox(height: 8),
                 if (status != 'pending_kyc')
                   SecondaryButton(
@@ -744,6 +786,190 @@ class _AdminPosScreenState extends State<AdminPosScreen> {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ------------------------------------------------------------- tiers & documents
+
+const _tierNames = ['Tier 1 · Basic', 'Tier 2 · Verified', 'Tier 3 · Premium'];
+
+/// Shows an uploaded proof document (utility bill, business registration) to staff.
+class AdminDocumentScreen extends StatelessWidget {
+  const AdminDocumentScreen({super.key, required this.documentId});
+
+  final String documentId;
+
+  @override
+  Widget build(BuildContext context) {
+    return PlainScaffold(
+      title: 'Document',
+      child: ApiBuilder<_Json>(
+        load: () => api.adminDocument(documentId),
+        builder: (context, d, reload) {
+          final mime = asStr(d['mime']);
+          if (mime == 'application/pdf') {
+            return const InfoBanner(text: 'This document is a PDF, which cannot be shown here.');
+          }
+          final bytes = base64Decode(asStr(d['data']));
+          return Column(
+            children: [
+              ClipRRect(borderRadius: BorderRadius.circular(14), child: InteractiveViewer(child: Image.memory(bytes))),
+              const SizedBox(height: 10),
+              Text('Pinch to zoom · ${(bytes.length / 1024).round()} KB', style: const TextStyle(color: TpColors.muted, fontSize: 12.5)),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// Admin: the limits for each tier (daily spending and maximum balance). Empty = unlimited.
+class AdminTiersScreen extends StatefulWidget {
+  const AdminTiersScreen({super.key});
+
+  @override
+  State<AdminTiersScreen> createState() => _AdminTiersScreenState();
+}
+
+class _AdminTiersScreenState extends State<AdminTiersScreen> {
+  final _daily = {for (final t in _tierNames) t: TextEditingController()};
+  final _balance = {for (final t in _tierNames) t: TextEditingController()};
+  Map<String, dynamic> _counts = {};
+  bool _loading = true;
+  bool _saving = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void dispose() {
+    for (final c in [..._daily.values, ..._balance.values]) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  String _fmt(dynamic v) => v == null ? '' : (v as num).toStringAsFixed(v == v.roundToDouble() ? 0 : 2);
+
+  void _fill(Map<String, dynamic> r) {
+    final limits = asMap(r['limits']);
+    for (final t in _tierNames) {
+      final l = asMap(limits[t]);
+      _daily[t]!.text = _fmt(l['daily']);
+      _balance[t]!.text = _fmt(l['balance']);
+    }
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final r = await api.adminTiers();
+      if (!mounted) return;
+      _fill(r);
+      setState(() {
+        _counts = asMap(r['counts']);
+        _loading = false;
+      });
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = errorMessage(e);
+          _loading = false;
+        });
+      }
+    }
+  }
+
+  dynamic _num(String text) {
+    final t = text.replaceAll(',', '').trim();
+    if (t.isEmpty) return null;
+    return double.tryParse(t);
+  }
+
+  Future<void> _save() async {
+    final body = <String, dynamic>{};
+    for (final t in _tierNames) {
+      final d = _daily[t]!.text.trim();
+      final b = _balance[t]!.text.trim();
+      if ((d.isNotEmpty && _num(d) == null) || (b.isNotEmpty && _num(b) == null)) {
+        setState(() => _error = 'Enter numbers only (leave empty for unlimited).');
+        return;
+      }
+      body[t] = {'daily': _num(d), 'balance': _num(b)};
+    }
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      final r = await api.adminSaveTiers(body);
+      if (!mounted) return;
+      _fill(r);
+      showMessage(context, 'Tier limits saved');
+    } catch (e) {
+      if (mounted) setState(() => _error = errorMessage(e));
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final canEdit = appState.me.isAdmin;
+    return PlainScaffold(
+      title: 'Tiers & limits',
+      child: _loading
+          ? const Padding(padding: EdgeInsets.symmetric(vertical: 32), child: CircularProgressIndicator())
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (final t in _tierNames) ...[
+                  WhiteCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(t, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
+                        Text('${asInt(_counts[t])} customers', style: const TextStyle(color: TpColors.muted, fontSize: 13)),
+                        const SizedBox(height: 12),
+                        TpField(
+                          label: 'Daily spending limit (Le)',
+                          controller: _daily[t],
+                          hint: 'Empty = unlimited',
+                          allowDecimal: true,
+                          readOnly: !canEdit,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        ),
+                        const SizedBox(height: 12),
+                        TpField(
+                          label: 'Maximum balance (Le)',
+                          controller: _balance[t],
+                          hint: 'Empty = unlimited',
+                          allowDecimal: true,
+                          readOnly: !canEdit,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                if (_error != null) ...[ErrorBanner(_error!), const SizedBox(height: 12)],
+                if (canEdit) PrimaryButton(label: 'Save limits', loading: _saving, onPressed: _saving ? () {} : _save),
+                const SizedBox(height: 12),
+                const InfoBanner(
+                  text: 'Limits apply at once. Customers move up a tier by sending proof from Profile; you approve it under Approvals, or set a tier yourself on a customer\'s profile.',
+                ),
+              ],
+            ),
     );
   }
 }

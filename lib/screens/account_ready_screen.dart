@@ -35,7 +35,8 @@ class _AccountReadyScreenState extends State<AccountReadyScreen> {
       final user = await api.setPin(_pin);
       appState.setUser(user);
       if (!mounted) return;
-      Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false);
+      final next = AppState.routeFor(user);
+      Navigator.pushNamedAndRemoveUntil(context, next.route, (_) => false, arguments: next.arguments);
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
     } finally {

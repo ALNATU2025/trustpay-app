@@ -66,6 +66,9 @@ class ApiClient {
 
   final http.Client _http;
   String? _token;
+
+  /// Set for the next request only: the customer confirmed a payment that looked like a duplicate.
+  bool confirmDuplicateNext = false;
   bool _tokenLoaded = false;
   bool _handlingUnauthorized = false;
   int _slowRequests = 0;
@@ -179,6 +182,10 @@ class ApiClient {
       headers['Authorization'] = 'Bearer $_token';
     }
     if (idempotencyKey != null) headers['Idempotency-Key'] = idempotencyKey;
+    if (confirmDuplicateNext) {
+      headers['X-Confirm-Duplicate'] = '1';
+      confirmDuplicateNext = false;
+    }
 
     final uri = _uri(path, query);
     final encoded = body == null ? null : jsonEncode(body);

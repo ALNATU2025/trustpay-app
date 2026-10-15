@@ -448,7 +448,45 @@ class TrustPayApi {
   Future<ChatMessage> sendChat(String text) async =>
       ChatMessage.fromJson(asMap((await _post('/support/chat', {'text': text}))['message']));
 
+  // ------------------------------------------------------------------- tiers
+
+  Future<Map<String, dynamic>> tierInfo() async => _get('/me/tier');
+
+  /// Uploads a proof photo and returns its id.
+  Future<String> uploadDocument({required String kind, required String mime, required String base64Data}) async =>
+      asStr(asMap((await _post('/me/documents', {'kind': kind, 'mime': mime, 'data': base64Data}))['document'])['id']);
+
+  Future<void> requestTier({
+    required String tier,
+    required String documentId,
+    String? address,
+    String? legalName,
+    String? businessNumber,
+  }) async {
+    await _post('/me/tier-requests', {
+      'tier': tier,
+      'documentId': documentId,
+      if (address != null && address.isNotEmpty) 'address': address,
+      if (legalName != null && legalName.isNotEmpty) 'legalName': legalName,
+      if (businessNumber != null && businessNumber.isNotEmpty) 'businessNumber': businessNumber,
+    });
+  }
+
   // ------------------------------------------------------------------- admin
+
+  Future<Map<String, dynamic>> adminDocument(String id) async => _get('/admin/documents/$id');
+
+  Future<Map<String, dynamic>> adminTiers() async => _get('/admin/tiers');
+
+  /// [limits] is `{tierName: {daily: number|null, balance: number|null}}` in Leones (`null` = unlimited).
+  Future<Map<String, dynamic>> adminSaveTiers(Map<String, dynamic> limits) async {
+    final r = await _c.patch('/admin/tiers', body: limits);
+    return asMap(r);
+  }
+
+  Future<void> adminSetTier(String userId, String tier) async {
+    await _c.patch('/admin/users/$userId', body: {'tier': tier});
+  }
 
   Future<AdminStats> adminStats() async => AdminStats.fromJson(await _get('/admin/stats'));
 

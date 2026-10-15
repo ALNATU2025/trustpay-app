@@ -14,6 +14,7 @@ import '../admin/admin_screens.dart';
 import '../flows/flows.dart';
 import '../support/support_screen.dart';
 import 'account_screens.dart';
+import 'tier_screens.dart';
 
 /// The Account tab: profile card and a grouped menu.
 class ProfileTab extends StatelessWidget {
@@ -51,10 +52,17 @@ class ProfileTab extends StatelessWidget {
                 onTap: () => openScreen(context, const PersonalDetailsScreen()),
               ),
               MenuTile(
+                icon: Icons.workspace_premium_outlined,
+                title: 'Account tier & limits',
+                tone: TpTone.green,
+                subtitle: appState.me.tier,
+                onTap: () => openScreen(context, const TierScreen()),
+              ),
+              MenuTile(
                 icon: Icons.shield_outlined,
                 title: 'Security & PIN',
                 tone: TpTone.teal,
-                subtitle: 'Password, PIN, Face ID',
+                subtitle: 'Password, PIN, dark mode, biometrics',
                 onTap: () => openScreen(context, const SecurityScreen()),
               ),
               MenuTile(

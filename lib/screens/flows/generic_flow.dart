@@ -63,7 +63,8 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
   String? _error;
   int _round = 0; // changes to clear the PIN boxes after a wrong PIN
 
-  Future<void> _pay() async {
+  Future<void> _pay({bool confirmed = false}) async {
+    if (confirmed) apiClient.confirmDuplicateNext = true;
     setState(() {
       _loading = true;
       _error = null;
@@ -75,6 +76,22 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
       replaceScreen(context, widget.successBuilder(result));
     } on ApiException catch (e) {
       if (!mounted) return;
+      if (e.code == 'DUPLICATE_SUSPECTED') {
+        setState(() => _loading = false);
+        final again = await showDialog<bool>(
+          context: context,
+          builder: (d) => AlertDialog(
+            title: const Text('Possible duplicate'),
+            content: Text(e.message),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('Cancel')),
+              TextButton(onPressed: () => Navigator.pop(d, true), child: const Text('Pay again')),
+            ],
+          ),
+        );
+        if (again == true && mounted) await _pay(confirmed: true);
+        return;
+      }
       var message = e.message;
       if (e.status == 0) {
         message = '$message If you already tried to pay, check Transactions before paying again.';

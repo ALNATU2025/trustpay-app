@@ -62,12 +62,19 @@ class AppState extends ChangeNotifier {
   }
 
   /// The screen for the next unfinished sign-up step, or Home when sign-up is complete.
-  static StartTarget routeFor(User user) => switch (user.onboardingStep) {
-        'phone' => StartTarget('/otp', arguments: user.phone),
-        'identity' => const StartTarget('/identity'),
-        'pin' => const StartTarget('/ready'),
-        _ => const StartTarget('/home'),
-      };
+  static StartTarget routeFor(User user) {
+    switch (user.onboardingStep) {
+      case 'phone':
+        return StartTarget('/otp', arguments: user.phone);
+      case 'identity':
+        return const StartTarget('/identity');
+      case 'pin':
+        return const StartTarget('/ready');
+    }
+    // Signed up but not approved yet: an admin has to approve every new account before it can be used.
+    if (!user.isStaff && user.status == 'pending_kyc') return const StartTarget('/pending');
+    return const StartTarget('/home');
+  }
 
   Future<void> loadCatalog({bool force = false}) async {
     if (_catalog != null && !force) return;

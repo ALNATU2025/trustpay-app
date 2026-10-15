@@ -90,6 +90,12 @@ class AdminDashboardScreen extends StatelessWidget {
                 onTap: () => openScreen(context, const AdminPosScreen()),
               ),
               MenuTile(
+                icon: Icons.workspace_premium_outlined,
+                title: 'Tiers & limits',
+                subtitle: 'Daily and balance limits for each tier',
+                onTap: () => openScreen(context, const AdminTiersScreen()),
+              ),
+              MenuTile(
                 icon: Icons.fact_check_outlined,
                 title: 'Approvals',
                 subtitle: 'KYC, POS terminals, limits',
@@ -578,6 +584,7 @@ IconData _approvalIcon(String type) => switch (type) {
       'kyc' => Icons.badge_outlined,
       'pos' => Icons.desktop_windows_outlined,
       'limit' => Icons.trending_up,
+      'tier' => Icons.workspace_premium_outlined,
       _ => Icons.fact_check_outlined,
     };
 
@@ -719,6 +726,14 @@ class _AdminApprovalsScreenState extends State<AdminApprovalsScreen> {
                           ),
                         ],
                       ),
+                      if (a.documentId.isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        OutlinedButton.icon(
+                          onPressed: () => openScreen(context, AdminDocumentScreen(documentId: a.documentId)),
+                          icon: const Icon(Icons.description_outlined),
+                          label: const Text('View document'),
+                        ),
+                      ],
                       const SizedBox(height: 14),
                       Row(
                         children: [

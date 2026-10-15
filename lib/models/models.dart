@@ -63,6 +63,8 @@ class User {
     required this.onboardingStep,
     required this.hasPin,
     required this.balance,
+    this.kycStatus = '',
+    this.kycReason = '',
   });
 
   factory User.fromJson(Map<String, dynamic> j) {
@@ -85,9 +87,14 @@ class User {
       onboardingStep: asStr(j['onboardingStep'], 'done'),
       hasPin: asBool(j['hasPin']),
       balance: asDouble(j['balance']),
+      kycStatus: asStr(j['kycStatus']),
+      kycReason: asStr(j['kycReason']),
     );
   }
 
+  /// Identity review: `pending`, `approved` or `rejected` (empty when the server does not say).
+  final String kycStatus;
+  final String kycReason;
   final String id;
   final String firstName;
   final String lastName;
@@ -136,6 +143,8 @@ class User {
         onboardingStep: onboardingStep,
         hasPin: hasPin,
         balance: balance ?? this.balance,
+        kycStatus: kycStatus,
+        kycReason: kycReason,
       );
 }
 
@@ -1032,6 +1041,7 @@ class Approval {
     required this.title,
     required this.detail,
     required this.createdAt,
+    this.documentId = '',
   });
 
   factory Approval.fromJson(Map<String, dynamic> j) => Approval(
@@ -1040,11 +1050,14 @@ class Approval {
         title: asStr(j['title']),
         detail: asStr(j['detail']),
         createdAt: tryParseDate(j['createdAt']),
+        documentId: asStr(j['documentId']),
       );
 
+  /// Proof document to look at (tier upgrade requests).
+  final String documentId;
   final String id;
 
-  /// `kyc`, `pos` or `limit`.
+  /// `kyc`, `pos`, `limit` or `tier`.
   final String type;
   final String title;
   final String detail;

@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../models/models.dart';
 import '../../services/api.dart';
 import '../../services/app_state.dart';
+import '../../services/session_guard.dart';
+import '../../services/settings.dart';
 import '../../services/trustpay_api.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
@@ -176,8 +178,29 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 enum _Secret { password, pin }
 
 /// Password and PIN changes.
-class SecurityScreen extends StatelessWidget {
+class SecurityScreen extends StatefulWidget {
   const SecurityScreen({super.key});
+
+  @override
+  State<SecurityScreen> createState() => _SecurityScreenState();
+}
+
+class _SecurityScreenState extends State<SecurityScreen> {
+  Future<void> _toggleBiometric(bool on) async {
+    if (!on) {
+      await appSettings.setBiometric(false);
+      return;
+    }
+    if (!await Biometrics.available()) {
+      if (mounted) showMessage(context, 'No fingerprint or face is set up on this phone. Add one in your phone settings first.');
+      return;
+    }
+    if (await Biometrics.confirm('Turn on biometric unlock for TrustPay')) {
+      await appSettings.setBiometric(true);
+    } else if (mounted) {
+      showMessage(context, 'Could not verify you, so biometric unlock stays off.');
+    }
+  }
 
   Future<void> _change(BuildContext context, _Secret kind) async {
     final done = await showModalBottomSheet<bool>(
@@ -198,8 +221,36 @@ class SecurityScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return PlainScaffold(
       title: 'Security & PIN',
-      child: Column(
+      child: ListenableBuilder(
+        listenable: appSettings,
+        builder: (context, _) => Column(
         children: [
+          MenuGroup(
+            label: 'APPEARANCE',
+            children: [
+              SwitchListTile(
+                secondary: const Icon(Icons.dark_mode_outlined),
+                title: const Text('Dark mode', style: TextStyle(fontWeight: FontWeight.w700)),
+                subtitle: Text(appSettings.dark ? 'Dark' : 'Normal'),
+                value: appSettings.dark,
+                onChanged: appSettings.setDark,
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          MenuGroup(
+            label: 'APP LOCK',
+            children: [
+              SwitchListTile(
+                secondary: const Icon(Icons.fingerprint),
+                title: const Text('Unlock with fingerprint or face', style: TextStyle(fontWeight: FontWeight.w700)),
+                subtitle: const Text('After 2 minutes without use the app locks. With this on you can unlock it with your fingerprint or face instead of logging in again.'),
+                value: appSettings.biometric,
+                onChanged: _toggleBiometric,
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
           MenuGroup(
             label: 'SIGN IN',
             children: [
@@ -228,6 +279,7 @@ class SecurityScreen extends StatelessWidget {
             text: 'TrustPay will never ask for your password, PIN or verification code.',
           ),
         ],
+      ),
       ),
     );
   }
