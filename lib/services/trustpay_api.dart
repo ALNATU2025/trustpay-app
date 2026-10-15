@@ -249,6 +249,19 @@ class TrustPayApi {
     return (PaymentResult.fromJson(json), asStrOrNull(json['checkoutUrl']));
   }
 
+  /// Starts a mobile money top-up. Live: returns the USSD code to dial and the balance rises when the
+  /// provider confirms. Test server: the money is added at once and the code is null.
+  Future<(PaymentResult, String?, DateTime?)> startMomoTopUp({
+    required String provider,
+    required String number,
+    required double amount,
+    required String idempotencyKey,
+  }) async {
+    final json = await _post('/payments/funding/momo-code', {'provider': provider, 'number': number, 'amount': amount}, key: idempotencyKey);
+    final exp = asStrOrNull(json['expiresAt']);
+    return (PaymentResult.fromJson(json), asStrOrNull(json['ussdCode']), exp == null ? null : DateTime.tryParse(exp)?.toLocal());
+  }
+
   Future<PaymentResult> payElectricity({
     required String provider,
     required bool prepaid,

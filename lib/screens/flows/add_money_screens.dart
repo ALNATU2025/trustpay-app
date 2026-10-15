@@ -13,12 +13,10 @@ import '../../utils/nav.dart';
 import '../../widgets/common.dart';
 import '../../widgets/flow_widgets.dart';
 import '../../widgets/step_scaffold.dart';
-import 'funding_screens.dart';
 import 'generic_flow.dart';
-import 'mobile_money_screens.dart';
 import 'receipt_screen.dart';
 
-/// Add money 1/3: choose a funding method.
+/// Add money 1/2: choose mobile money or card.
 class AddMoneyScreen extends StatefulWidget {
   const AddMoneyScreen({super.key});
 
@@ -27,33 +25,25 @@ class AddMoneyScreen extends StatefulWidget {
 }
 
 class _AddMoneyScreenState extends State<AddMoneyScreen> {
-  /// 0 mobile money, 1 debit card.
+  /// 0 mobile money, 1 card.
   int _method = 0;
 
   void _continue() {
-    if (appState.cat.onlineFunding) {
-      openScreen(context, const OnlineFundingScreen());
-      return;
-    }
-    switch (_method) {
-      case 1:
-        openScreen(context, const FundByCardScreen());
-      default:
-        openScreen(context, const MobileMoneyScreen(send: false));
-    }
+    openScreen(context, _method == 0 ? const MomoTopUpScreen() : const OnlineFundingScreen());
   }
 
-  Widget _onlineHub() {
+  @override
+  Widget build(BuildContext context) {
     return ListenableBuilder(
       listenable: appState,
       builder: (context, _) => StepScaffold(
         eyebrow: 'ADD MONEY · FROM HOME / SERVICES',
         counter: '01 / 02',
         title: 'Add money',
-        subtitle: 'Pay securely with mobile money or a card.',
+        subtitle: 'Pay with mobile money or a card.',
         headerLabel: 'Cancel',
         onHeaderAction: () => goHome(context),
-        primaryLabel: 'Continue',
+        primaryLabel: _method == 0 ? 'Continue with mobile money' : 'Continue with card',
         onPrimary: _continue,
         secondaryLabel: 'Back to home',
         onSecondary: () => goHome(context),
@@ -63,65 +53,22 @@ class _AddMoneyScreenState extends State<AddMoneyScreen> {
             AmountBanner(label: 'Current available balance', value: formatLeone(appState.balance)),
             const SizedBox(height: 16),
             SelectTile(
-              icon: Icons.lock_outline,
-              title: 'Mobile money or card',
-              subtitle: 'You choose how to pay on the next secure page',
-              selected: true,
-              onTap: () {},
-            ),
-            const SizedBox(height: 16),
-            const InfoBanner(text: 'Your card details are entered on the payment provider’s page. TrustPay never sees them.'),
-          ],
-        ),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (appState.cat.onlineFunding) return _onlineHub();
-    final method = const ['mobile money', 'debit card'][_method];
-    return ListenableBuilder(
-      listenable: appState,
-      builder: (context, _) => StepScaffold(
-        eyebrow: 'ADD MONEY · FROM HOME / SERVICES',
-        counter: '01 / 02',
-        title: 'Add money',
-        subtitle: 'Choose how you’d like to fund your account.',
-        headerLabel: 'Cancel',
-        onHeaderAction: () => goHome(context),
-        primaryLabel: 'Continue with $method',
-        onPrimary: _continue,
-        secondaryLabel: 'Back to home',
-        onSecondary: () => goHome(context),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            AmountBanner(
-              label: 'Current available balance',
-              value: formatLeone(appState.balance),
-            ),
-            const SizedBox(height: 16),
-            SelectTile(
               icon: Icons.phone_android_outlined,
               title: 'Mobile money',
-              subtitle: appState.cat.mobileMoney.join(', '),
+              subtitle: '${appState.cat.mobileMoney.join(', ')} · Approve with a USSD code',
               selected: _method == 0,
               onTap: () => setState(() => _method = 0),
             ),
             const SizedBox(height: 12),
             SelectTile(
               icon: Icons.credit_card_outlined,
-              title: 'Debit card',
-              subtitle: 'Fund with a debit card · Fees shown before payment',
+              title: 'Card',
+              subtitle: 'Pay on a secure card page',
               selected: _method == 1,
               onTap: () => setState(() => _method = 1),
             ),
             const SizedBox(height: 16),
-            Text(
-              'Selected method: $method',
-              style: const TextStyle(fontSize: 15, color: TpColors.muted),
-            ),
+            const InfoBanner(text: 'Your money is added as soon as the payment is confirmed.'),
           ],
         ),
       ),
@@ -168,7 +115,7 @@ class MoneyReceivedScreen extends StatelessWidget {
           children: [
             ResultHeader(
               headline: '${formatLeone(credited)} added',
-              detail: 'Your bank transfer has arrived and is ready to use.',
+              detail: 'Your payment has arrived and is ready to use.',
             ),
             const SizedBox(height: 20),
             DetailsCard(rows: rows),
@@ -341,8 +288,8 @@ class _OnlineFundingScreenState extends State<OnlineFundingScreen> with WidgetsB
       eyebrow: 'ADD MONEY',
       counter: '02 / 02',
       title: 'How much?',
-      subtitle: 'You will pay on a secure page and choose card, bank or mobile money there.',
-      primaryLabel: 'Continue to secure payment',
+      subtitle: 'You will enter your card on a secure payment page.',
+      primaryLabel: 'Continue to card payment',
       primaryLoading: _busy,
       onPrimary: _busy ? null : _start,
       secondaryLabel: 'Back',
@@ -370,6 +317,236 @@ class _OnlineFundingScreenState extends State<OnlineFundingScreen> with WidgetsB
             if (_error != null) ...[const SizedBox(height: 16), ErrorBanner(_error!)],
             const SizedBox(height: 16),
             const InfoBanner(text: 'TrustPay never sees your card details. The provider’s own fees, if any, are shown on its page.'),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+
+/// Add money 2/2 (mobile money): pick the wallet, get a USSD code, dial it and approve, then wait for the credit.
+class MomoTopUpScreen extends StatefulWidget {
+  const MomoTopUpScreen({super.key});
+
+  @override
+  State<MomoTopUpScreen> createState() => _MomoTopUpScreenState();
+}
+
+class _MomoTopUpScreenState extends State<MomoTopUpScreen> with WidgetsBindingObserver {
+  final _form = GlobalKey<FormState>();
+  final _number = TextEditingController();
+  final _amount = TextEditingController();
+  final String _key = newIdempotencyKey();
+  Timer? _poll;
+  String _wallet = '';
+  bool _busy = false;
+  bool _waiting = false;
+  bool _timedOut = false;
+  String? _error;
+  String? _txnId;
+  String? _code;
+  double _requested = 0;
+  DateTime? _deadline;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    final providers = appState.cat.mobileMoney;
+    _wallet = providers.isEmpty ? '' : providers.first;
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _poll?.cancel();
+    _number.dispose();
+    _amount.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && _waiting) _check();
+  }
+
+  Future<void> _start() async {
+    if (!_form.currentState!.validate() || _busy) return;
+    final amount = parseAmount(_amount.text);
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final (result, code, expires) = await api.startMomoTopUp(
+        provider: _wallet,
+        number: _number.text.replaceAll(' ', ''),
+        amount: amount,
+        idempotencyKey: _key,
+      );
+      if (!mounted) return;
+      appState.applyPayment(result);
+      _txnId = result.transaction.id;
+      _requested = amount;
+      if (code == null) {
+        // Test server: the money was added at once.
+        _finish(result.transaction);
+        return;
+      }
+      _code = code;
+      setState(() {
+        _waiting = true;
+        _timedOut = false;
+        _deadline = expires ?? DateTime.now().add(const Duration(minutes: 15));
+      });
+      _poll = Timer.periodic(const Duration(seconds: 4), (_) => _check());
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _dial() async {
+    final code = _code;
+    if (code == null) return;
+    final ok = await launchUrl(Uri(scheme: 'tel', path: code));
+    if (!ok && mounted) showMessage(context, 'Open your phone app and dial $code');
+  }
+
+  Future<void> _check() async {
+    final id = _txnId;
+    if (id == null || !mounted) return;
+    try {
+      final t = await api.transaction(id);
+      if (!mounted) return;
+      if (t.status == 'Successful') {
+        await appState.refreshUser();
+        _finish(t);
+      } else if (t.status == 'Failed') {
+        _poll?.cancel();
+        setState(() {
+          _waiting = false;
+          _error = 'The payment was not completed. No money was taken.';
+        });
+      } else if (_deadline != null && DateTime.now().isAfter(_deadline!)) {
+        _poll?.cancel();
+        setState(() => _timedOut = true);
+      }
+    } on ApiException {
+      // Try again on the next tick.
+    }
+  }
+
+  void _finish(Txn t) {
+    _poll?.cancel();
+    appState.refreshUser();
+    replaceScreen(context, MoneyReceivedScreen(amount: _requested, txn: t));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_waiting) {
+      return StepScaffold(
+        eyebrow: 'ADD MONEY',
+        counter: '02 / 02',
+        title: _timedOut ? 'Still waiting' : 'Dial to pay',
+        subtitle: _timedOut
+            ? 'We have not received the money yet. If you approved the payment, it can take a few minutes to arrive.'
+            : 'Dial this code from $_wallet number ${_number.text} and approve the payment.',
+        headerLabel: 'Done',
+        onHeaderAction: () => goHome(context),
+        primaryLabel: _timedOut ? 'Check again' : 'Dial now',
+        onPrimary: _timedOut
+            ? () {
+                setState(() {
+                  _timedOut = false;
+                  _deadline = DateTime.now().add(const Duration(minutes: 5));
+                });
+                _poll?.cancel();
+                _poll = Timer.periodic(const Duration(seconds: 4), (_) => _check());
+                _check();
+              }
+            : _dial,
+        secondaryLabel: 'Back to home',
+        onSecondary: () => goHome(context),
+        child: Column(
+          children: [
+            AmountBanner(label: 'Dial', value: _code ?? ''),
+            const SizedBox(height: 12),
+            if (_code != null)
+              OutlinedButton.icon(
+                onPressed: () => copyText(context, _code!, 'Code copied.'),
+                icon: const Icon(Icons.copy_rounded, size: 18),
+                label: const Text('Copy code'),
+              ),
+            if (!_timedOut) const Padding(padding: EdgeInsets.symmetric(vertical: 20), child: CircularProgressIndicator()),
+            if (_error != null) ErrorBanner(_error!),
+            const SizedBox(height: 12),
+            InfoBanner(text: 'Adding ${formatLeone(_requested)} to your balance. The code works once, only from your number, and expires soon. Do not pay twice.'),
+          ],
+        ),
+      );
+    }
+    final providers = appState.cat.mobileMoney;
+    return StepScaffold(
+      eyebrow: 'ADD MONEY',
+      counter: '02 / 02',
+      title: 'Mobile money',
+      subtitle: 'We give you a USSD code to dial and approve on your phone.',
+      primaryLabel: 'Get payment code',
+      primaryLoading: _busy,
+      onPrimary: _busy ? null : _start,
+      secondaryLabel: 'Back',
+      onSecondary: () => Navigator.maybePop(context),
+      child: Form(
+        key: _form,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Mobile money provider', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                for (var i = 0; i < providers.length; i++) ...[
+                  if (i > 0) const SizedBox(width: 10),
+                  Expanded(
+                    child: ChoiceBox(
+                      label: providers[i],
+                      selected: providers[i] == _wallet,
+                      onTap: () => setState(() => _wallet = providers[i]),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            const SizedBox(height: 18),
+            TpField(
+              label: 'Your wallet number',
+              controller: _number,
+              hint: '076 123 456',
+              keyboardType: TextInputType.phone,
+              validator: (v) => (v ?? '').replaceAll(' ', '').length != 9 ? 'Enter a 9-digit number, like 076 123 456' : null,
+            ),
+            const SizedBox(height: 16),
+            TpField(
+              label: 'Amount',
+              controller: _amount,
+              hint: '0.00',
+              prefixText: 'Le ',
+              allowDecimal: true,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              validator: (v) => parseAmount(v ?? '') < 5 ? 'Minimum is Le 5' : null,
+            ),
+            const SizedBox(height: 8),
+            AmountChips(
+              amounts: const [100, 500, 1000, 2000],
+              onPick: (a) => setState(() => _amount.text = a.toStringAsFixed(0)),
+            ),
+            if (_error != null) ...[const SizedBox(height: 16), ErrorBanner(_error!)],
+            const SizedBox(height: 16),
+            const InfoBanner(text: 'No TrustPay fee. Your wallet provider may charge its own fee.'),
           ],
         ),
       ),
