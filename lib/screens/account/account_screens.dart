@@ -14,6 +14,7 @@ import '../../widgets/common.dart';
 import '../../widgets/flow_widgets.dart';
 import '../../widgets/menu_widgets.dart';
 import '../support/support_screen.dart';
+import 'notification_center_screen.dart';
 
 Widget _errorBanner(String message) => InfoBanner(
       icon: Icons.error_outline,
@@ -407,37 +408,5 @@ class NotificationsScreen extends StatelessWidget {
   const NotificationsScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return PlainScaffold(
-      title: 'Notifications',
-      child: ListenableBuilder(
-        listenable: appState,
-        builder: (context, _) => ApiBuilder<PagedList<Txn>>(
-          load: () => api.transactions(limit: 20),
-          reloadKey: appState.txnVersion,
-          builder: (context, page, reload) {
-            if (page.items.isEmpty) {
-              return const Padding(
-                padding: EdgeInsets.symmetric(vertical: 60),
-                child: Center(
-                  child: Text('No notifications yet.', style: TextStyle(color: TpColors.muted)),
-                ),
-              );
-            }
-            return MenuGroup(
-              children: [
-                for (final t in page.items)
-                  MenuTile(
-                    icon: t.isCredit ? Icons.south_west : Icons.north_east,
-                    title: t.isCredit ? 'Money in · ${t.title}' : t.title,
-                    subtitle: '${formatLeone(t.signedAmount, showSign: true)} · ${t.status}\n'
-                        '${formatShortDateTime(t.createdAt)}',
-                  ),
-              ],
-            );
-          },
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => const NotificationCenterScreen();
 }

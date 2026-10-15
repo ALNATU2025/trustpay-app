@@ -90,6 +90,12 @@ class AdminDashboardScreen extends StatelessWidget {
                 onTap: () => openScreen(context, const AdminPosScreen()),
               ),
               MenuTile(
+                icon: Icons.campaign_outlined,
+                title: 'Notifications',
+                subtitle: 'Send updates and choose your alerts',
+                onTap: () => openScreen(context, const AdminNotifyScreen()),
+              ),
+              MenuTile(
                 icon: Icons.workspace_premium_outlined,
                 title: 'Tiers & limits',
                 subtitle: 'Daily and balance limits for each tier',

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../services/app_state.dart';
+import '../services/notification_service.dart';
 import '../services/api.dart';
 import '../theme/app_theme.dart';
 import '../utils/nav.dart';
@@ -32,6 +33,13 @@ class _HomeShellState extends State<HomeShell> {
   void initState() {
     super.initState();
     _load();
+    appNotifications.start();
+  }
+
+  @override
+  void dispose() {
+    appNotifications.stop();
+    super.dispose();
   }
 
   Future<void> _load() async {

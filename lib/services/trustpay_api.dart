@@ -448,6 +448,43 @@ class TrustPayApi {
   Future<ChatMessage> sendChat(String text) async =>
       ChatMessage.fromJson(asMap((await _post('/support/chat', {'text': text}))['message']));
 
+  // ------------------------------------------------------------- notifications
+
+  Future<PagedList<Map<String, dynamic>>> notifications({int page = 1}) async {
+    final res = await _get('/notifications', query: {'page': page, 'limit': 30});
+    return PagedList(asMapList(res['items']), asInt(res['page'], page), asBool(res['hasMore']));
+  }
+
+  Future<Map<String, dynamic>> notificationsUnread() async => _get('/notifications/unread');
+
+  Future<void> markNotificationsRead() async {
+    await _post('/notifications/read', {'all': true});
+  }
+
+  Future<Map<String, dynamic>> notificationPrefs() async => asMap((await _get('/me/notification-prefs'))['prefs']);
+
+  Future<Map<String, dynamic>> setNotificationPrefs(Map<String, bool> prefs) async =>
+      asMap((await _post('/me/notification-prefs', prefs))['prefs']);
+
+  Future<int> adminSendNotification({
+    required String audience,
+    String? tier,
+    String? userId,
+    required String kind,
+    required String title,
+    String body = '',
+  }) async =>
+      asInt((await _post('/admin/notifications', {
+        'audience': audience,
+        if (tier != null) 'tier': tier,
+        if (userId != null) 'userId': userId,
+        'kind': kind,
+        'title': title,
+        if (body.isNotEmpty) 'body': body,
+      }))['sent']);
+
+  Future<List<Map<String, dynamic>>> adminNotificationHistory() async => asMapList((await _get('/admin/notifications'))['items']);
+
   // ------------------------------------------------------------------- tiers
 
   Future<Map<String, dynamic>> tierInfo() async => _get('/me/tier');

@@ -490,6 +490,11 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
                 const SizedBox(height: 8),
                 SecondaryButton(label: 'Change tier (${asStr(u['tier'])})', onPressed: () => _changeTier(u)),
                 const SizedBox(height: 8),
+                SecondaryButton(
+                  label: 'Send notification',
+                  onPressed: () => openScreen(context, AdminNotifyScreen(userId: widget.userId, userName: asStr(u['name']))),
+                ),
+                const SizedBox(height: 8),
                 if (status != 'pending_kyc')
                   SecondaryButton(
                     label: status == 'suspended' ? 'Reactivate account' : 'Suspend account',
@@ -973,4 +978,225 @@ class _AdminTiersScreenState extends State<AdminTiersScreen> {
             ),
     );
   }
+}
+
+// --------------------------------------------------------------- notifications
+
+const _kinds = [
+  ('update', 'Update'),
+  ('maintenance', 'Maintenance'),
+  ('feature', 'New feature'),
+  ('approval', 'Approval'),
+  ('message', 'Message'),
+];
+
+/// Admin: send a notification to everyone, one tier, merchants or one customer. Also lists what was sent
+/// and lets each staff member choose which alerts they receive (signups, top-ups, payments...).
+class AdminNotifyScreen extends StatefulWidget {
+  const AdminNotifyScreen({super.key, this.userId, this.userName});
+
+  /// Opens the form already aimed at one customer.
+  final String? userId;
+  final String? userName;
+
+  @override
+  State<AdminNotifyScreen> createState() => _AdminNotifyScreenState();
+}
+
+class _AdminNotifyScreenState extends State<AdminNotifyScreen> {
+  final _title = TextEditingController();
+  final _body = TextEditingController();
+  late String _audience;
+  String _tier = _tierNames.first;
+  String _kind = 'update';
+  bool _busy = false;
+  String? _error;
+  int _gen = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _audience = widget.userId != null ? 'user' : 'all';
+  }
+
+  @override
+  void dispose() {
+    _title.dispose();
+    _body.dispose();
+    super.dispose();
+  }
+
+  String get _who => switch (_audience) {
+        'all' => 'all customers',
+        'tier' => 'everyone on $_tier',
+        'merchants' => 'all merchants',
+        _ => widget.userName ?? 'this customer',
+      };
+
+  Future<void> _send() async {
+    if (_title.text.trim().isEmpty) {
+      setState(() => _error = 'Add a title.');
+      return;
+    }
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (d) => AlertDialog(
+        title: const Text('Send notification?'),
+        content: Text('"${_title.text.trim()}" will be sent to $_who.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(d, true), child: const Text('Send')),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final n = await api.adminSendNotification(
+        audience: _audience,
+        tier: _audience == 'tier' ? _tier : null,
+        userId: _audience == 'user' ? widget.userId : null,
+        kind: _kind,
+        title: _title.text.trim(),
+        body: _body.text.trim(),
+      );
+      if (!mounted) return;
+      showMessage(context, 'Sent to $n ${n == 1 ? 'person' : 'people'}');
+      _title.clear();
+      _body.clear();
+      setState(() => _gen++);
+    } catch (e) {
+      if (mounted) setState(() => _error = errorMessage(e));
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Widget _choice(String label, bool on, VoidCallback tap) => Padding(
+        padding: const EdgeInsets.only(right: 8),
+        child: ChoiceChip(label: Text(label), selected: on, onSelected: (_) => tap()),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final canSend = appState.me.isAdmin;
+    return PlainScaffold(
+      title: 'Notifications',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (canSend) ...[
+            const Text('SEND TO', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 0.8, color: TpColors.muted)),
+            const SizedBox(height: 6),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(children: [
+                if (widget.userId != null) _choice(widget.userName ?? 'This customer', _audience == 'user', () => setState(() => _audience = 'user')),
+                _choice('Everyone', _audience == 'all', () => setState(() => _audience = 'all')),
+                _choice('A tier', _audience == 'tier', () => setState(() => _audience = 'tier')),
+                _choice('Merchants', _audience == 'merchants', () => setState(() => _audience = 'merchants')),
+              ]),
+            ),
+            if (_audience == 'tier') ...[
+              const SizedBox(height: 6),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(children: [for (final t in _tierNames) _choice(t, _tier == t, () => setState(() => _tier = t))]),
+              ),
+            ],
+            const SizedBox(height: 14),
+            const Text('TYPE', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 0.8, color: TpColors.muted)),
+            const SizedBox(height: 6),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(children: [for (final k in _kinds) _choice(k.$2, _kind == k.$1, () => setState(() => _kind = k.$1))]),
+            ),
+            const SizedBox(height: 14),
+            TpField(label: 'Title', controller: _title, hint: 'e.g. Scheduled maintenance tonight', maxLength: 100),
+            const SizedBox(height: 12),
+            TpField(label: 'Message (optional)', controller: _body, hint: 'Details customers should know', maxLength: 500),
+            if (_error != null) ...[const SizedBox(height: 12), ErrorBanner(_error!)],
+            const SizedBox(height: 14),
+            PrimaryButton(label: 'Send to $_who', loading: _busy, onPressed: _busy ? () {} : _send),
+            const SizedBox(height: 22),
+          ] else
+            const InfoBanner(text: 'Only admins can send notifications. You can still choose which alerts you receive below.'),
+          const Text('YOUR ALERTS', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 0.8, color: TpColors.muted)),
+          const SizedBox(height: 6),
+          ApiBuilder<Map<String, dynamic>>(
+            load: api.notificationPrefs,
+            builder: (context, prefs, reload) => _PrefsCard(prefs: prefs),
+          ),
+          const SizedBox(height: 22),
+          const Text('RECENTLY SENT', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 0.8, color: TpColors.muted)),
+          const SizedBox(height: 6),
+          ApiBuilder<List<Map<String, dynamic>>>(
+            key: ValueKey(_gen),
+            load: api.adminNotificationHistory,
+            builder: (context, rows, reload) => rows.isEmpty
+                ? const Text('Nothing sent yet.', style: TextStyle(color: TpColors.muted))
+                : MenuGroup(children: [
+                    for (final r in rows)
+                      Padding(
+                        key: ValueKey(asStr(r['id'])),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text(asStr(r['title']), style: const TextStyle(fontWeight: FontWeight.w700)),
+                          Text('${_capitalize(asStr(r['kind']))} · to ${asStr(r['audience'])} · ${asInt(r['count'])} people · ${_when(r['createdAt'])}',
+                              style: const TextStyle(fontSize: 12.5, color: TpColors.muted)),
+                        ]),
+                      ),
+                  ]),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PrefsCard extends StatefulWidget {
+  const _PrefsCard({required this.prefs});
+
+  final Map<String, dynamic> prefs;
+
+  @override
+  State<_PrefsCard> createState() => _PrefsCardState();
+}
+
+class _PrefsCardState extends State<_PrefsCard> {
+  late Map<String, dynamic> _prefs = Map.of(widget.prefs);
+
+  static const _labels = {
+    'signup': 'New signups',
+    'approval': 'Things waiting for approval',
+    'funding': 'Wallet top-ups',
+    'payment': 'Payments and transfers',
+    'alert': 'Failed payments',
+  };
+
+  Future<void> _set(String key, bool v) async {
+    setState(() => _prefs[key] = v);
+    try {
+      final saved = await api.setNotificationPrefs({key: v});
+      if (mounted) setState(() => _prefs = Map.of(saved));
+    } catch (e) {
+      if (mounted) {
+        setState(() => _prefs[key] = !v);
+        showMessage(context, errorMessage(e));
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => MenuGroup(children: [
+        for (final e in _labels.entries)
+          SwitchListTile(
+            title: Text(e.value, style: const TextStyle(fontWeight: FontWeight.w600)),
+            value: _prefs[e.key] != false,
+            onChanged: (v) => _set(e.key, v),
+          ),
+      ]);
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../screens/account/account_screens.dart';
 import '../services/app_state.dart';
+import '../services/notification_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/nav.dart';
 import 'common.dart';
@@ -58,6 +59,23 @@ class AccountHeader extends StatelessWidget {
               icon: Icons.notifications_none,
               tooltip: 'Notifications',
               onTap: () => openScreen(context, const NotificationsScreen()),
+            ),
+            Positioned(
+              right: 0,
+              top: 0,
+              child: ListenableBuilder(
+                listenable: appNotifications,
+                builder: (context, _) => appNotifications.unread == 0
+                    ? const SizedBox.shrink()
+                    : Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                        decoration: BoxDecoration(color: TpColors.danger, borderRadius: BorderRadius.circular(10)),
+                        child: Text(
+                          appNotifications.unread > 9 ? '9+' : '${appNotifications.unread}',
+                          style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800),
+                        ),
+                      ),
+              ),
             ),
           ],
         ),
