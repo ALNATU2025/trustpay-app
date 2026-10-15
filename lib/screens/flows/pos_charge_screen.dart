@@ -13,6 +13,7 @@ import '../../utils/nav.dart';
 import '../../widgets/common.dart';
 import '../../widgets/flow_widgets.dart';
 import '../../widgets/step_scaffold.dart';
+import 'generic_flow.dart';
 
 /// Phone POS: the merchant enters an amount and the customer's wallet number; the customer dials the
 /// USSD code (or the merchant dials it for them) and approves. The payment is recorded as a POS payment
