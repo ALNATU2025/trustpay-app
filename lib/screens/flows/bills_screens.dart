@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
-import '../../data/sample_data.dart';
 import '../../models/models.dart';
+import '../../services/api.dart';
+import '../../services/app_state.dart';
+import '../../services/trustpay_api.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/debounce.dart';
 import '../../utils/format.dart';
 import '../../utils/nav.dart';
 import '../../widgets/common.dart';
 import '../../widgets/flow_widgets.dart';
-import '../../widgets/otp_input.dart';
 import '../../widgets/step_scaffold.dart';
+import 'generic_flow.dart';
 import 'tv_internet_screens.dart';
 
 /// Bills 1/4: category and provider.
@@ -29,20 +31,28 @@ class _PayBillScreenState extends State<PayBillScreen> {
 
   late int _category = widget.initialCategory;
   String _query = '';
-  late BillProvider _selected = _providers.first;
+  BillProvider? _selected;
 
   List<BillProvider> get _providers => switch (_category) {
-        1 => kTvProviders,
-        2 => kInternetProviders,
-        _ => kElectricityProviders,
+        1 => appState.cat.tv,
+        2 => appState.cat.internet,
+        _ => appState.cat.electricity,
       };
 
+  @override
+  void initState() {
+    super.initState();
+    _selected = _providers.isEmpty ? null : _providers.first;
+  }
+
   void _continue() {
+    final selected = _selected;
+    if (selected == null) return;
     if (_category != 0) {
-      openScreen(context, TvInternetScreen(provider: _selected, isTv: _category == 1));
+      openScreen(context, TvInternetScreen(provider: selected, isTv: _category == 1));
       return;
     }
-    openScreen(context, ElectricityScreen(providerName: _selected.name));
+    openScreen(context, ElectricityScreen(providerName: selected.name));
   }
 
   @override
@@ -50,6 +60,7 @@ class _PayBillScreenState extends State<PayBillScreen> {
     final q = _query.trim().toLowerCase();
     final list = _providers.where((p) => q.isEmpty || p.name.toLowerCase().contains(q)).toList();
     final categoryName = _categories[_category];
+    final selected = _selected;
 
     return StepScaffold(
       eyebrow: 'BILLS · FROM HOME / SERVICES',
@@ -58,8 +69,8 @@ class _PayBillScreenState extends State<PayBillScreen> {
       subtitle: 'Choose a category and your provider.',
       headerLabel: 'Cancel',
       onHeaderAction: () => goHome(context),
-      primaryLabel: 'Continue with ${_selected.name}',
-      onPrimary: _continue,
+      primaryLabel: selected == null ? 'Continue' : 'Continue with ${selected.name}',
+      onPrimary: selected == null ? null : _continue,
       secondaryLabel: 'Back to home',
       onSecondary: () => goHome(context),
       child: Column(
@@ -76,7 +87,7 @@ class _PayBillScreenState extends State<PayBillScreen> {
                     selected: i == _category,
                     onTap: () => setState(() {
                       _category = i;
-                      _selected = _providers.first;
+                      _selected = _providers.isEmpty ? null : _providers.first;
                       _query = '';
                     }),
                   ),
@@ -98,12 +109,19 @@ class _PayBillScreenState extends State<PayBillScreen> {
             ),
           ),
           const SizedBox(height: 16),
+          if (list.isEmpty)
+            Text(
+              _providers.isEmpty
+                  ? 'No $categoryName providers are available right now.'
+                  : 'No provider matches your search.',
+              style: const TextStyle(fontSize: 14, color: TpColors.muted),
+            ),
           for (final p in list) ...[
             SelectTile(
               icon: _icons[_category],
               title: p.name,
               subtitle: p.subtitle,
-              selected: p.name == _selected.name,
+              selected: p.name == selected?.name,
               onTap: () => setState(() => _selected = p),
             ),
             const SizedBox(height: 12),
@@ -128,34 +146,51 @@ class _ElectricityScreenState extends State<ElectricityScreen> {
   final _form = GlobalKey<FormState>();
   final _meter = TextEditingController();
   final _amount = TextEditingController();
-  final _phone = TextEditingController(text: kPhone);
+  final _phone = TextEditingController(text: appState.me.phone);
+  final _debounce = Debouncer();
   bool _prepaid = true;
   MeterInfo? _info;
+  String? _lookupError;
   bool _verifying = false;
   int _lookupId = 0;
 
   @override
   void dispose() {
+    _debounce.dispose();
     _meter.dispose();
     _amount.dispose();
     _phone.dispose();
     super.dispose();
   }
 
-  Future<void> _validateMeter() async {
-    setState(() => _info = null);
-    if (_meter.text.length != 11) {
-      setState(() => _verifying = false);
-      return;
-    }
+  void _onMeterChanged() {
+    _debounce.cancel();
     final id = ++_lookupId;
-    setState(() => _verifying = true);
-    final info = await lookupMeter(widget.providerName, _meter.text);
-    if (!mounted || id != _lookupId) return;
     setState(() {
-      _info = info;
-      _verifying = false;
+      _info = null;
+      _lookupError = null;
+      _verifying = _meter.text.length == 11;
     });
+    if (_meter.text.length != 11) return;
+    _debounce.run(() => _validateMeter(id));
+  }
+
+  Future<void> _validateMeter(int id) async {
+    try {
+      final info = await api.lookupMeter(widget.providerName, _meter.text);
+      if (!mounted || id != _lookupId) return;
+      setState(() {
+        _info = info;
+        _lookupError = info == null ? 'We could not find this meter. Check the number.' : null;
+        _verifying = false;
+      });
+    } on ApiException catch (e) {
+      if (!mounted || id != _lookupId) return;
+      setState(() {
+        _lookupError = e.message;
+        _verifying = false;
+      });
+    }
   }
 
   double get _amountValue => parseAmount(_amount.text);
@@ -177,6 +212,7 @@ class _ElectricityScreenState extends State<ElectricityScreen> {
           customer: info.name,
           amount: _amountValue,
           phone: _phone.text.trim(),
+          fee: appState.cat.fees.bill,
         ),
       ),
     );
@@ -184,6 +220,7 @@ class _ElectricityScreenState extends State<ElectricityScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final fee = appState.cat.fees.bill;
     return StepScaffold(
       eyebrow: 'BILLS · ELECTRICITY',
       counter: '02 / 04',
@@ -213,7 +250,7 @@ class _ElectricityScreenState extends State<ElectricityScreen> {
               keyboardType: TextInputType.number,
               digitsOnly: true,
               maxLength: 11,
-              onChanged: (_) => _validateMeter(),
+              onChanged: (_) => _onMeterChanged(),
               validator: (v) => (v == null || v.length != 11) ? 'Enter all 11 digits' : null,
             ),
             const SizedBox(height: 10),
@@ -223,7 +260,17 @@ class _ElectricityScreenState extends State<ElectricityScreen> {
                 background: TpColors.greenTint,
                 accent: TpColors.green,
                 textColor: TpColors.green,
-                text: 'Customer validated · ${_info!.name}\n${_info!.address}',
+                text: _info!.address.isEmpty
+                    ? 'Customer validated · ${_info!.name}'
+                    : 'Customer validated · ${_info!.name}\n${_info!.address}',
+              )
+            else if (_lookupError != null)
+              InfoBanner(
+                icon: Icons.error_outline,
+                background: const Color(0xFFFDECEC),
+                accent: TpColors.danger,
+                textColor: TpColors.danger,
+                text: _lookupError!,
               )
             else if (_verifying)
               const Text(
@@ -242,20 +289,21 @@ class _ElectricityScreenState extends State<ElectricityScreen> {
               validator: (v) {
                 final a = parseAmount(v ?? '');
                 if (a <= 0) return 'Enter an amount';
-                if (a > kAccountBalance) return 'Insufficient balance';
+                if (a + fee > appState.balance) return 'Insufficient balance';
                 return null;
               },
             ),
             const SizedBox(height: 16),
             TpField(
-              label: 'Phone for token delivery',
+              label: _prepaid ? 'Phone for token delivery' : 'Phone for the receipt',
               controller: _phone,
               keyboardType: TextInputType.phone,
               validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
             ),
             const SizedBox(height: 14),
             Text(
-              'Fee ${formatLeone(BillDraft.fee)} · Total debit ${formatLeone(_amountValue + BillDraft.fee)}\n'
+              'Fee ${formatLeone(fee)} · Total debit ${formatLeone(_amountValue + fee)}\n'
+              '${balanceLine()}\n'
               '${_prepaid ? 'Your electricity token will appear on the receipt.' : 'Your payment will be applied to your account.'}',
               style: const TextStyle(fontSize: 13, height: 1.4, color: TpColors.muted),
             ),
@@ -267,78 +315,40 @@ class _ElectricityScreenState extends State<ElectricityScreen> {
 }
 
 /// Bills 3/4: review and PIN.
-class ConfirmBillScreen extends StatefulWidget {
+class ConfirmBillScreen extends StatelessWidget {
   const ConfirmBillScreen({super.key, required this.draft});
 
   final BillDraft draft;
 
   @override
-  State<ConfirmBillScreen> createState() => _ConfirmBillScreenState();
-}
-
-class _ConfirmBillScreenState extends State<ConfirmBillScreen> {
-  String _pin = '';
-
-  void _pay() {
-    // TODO: verify the PIN and submit the payment with your bills API.
-    replaceScreen(
-      context,
-      BillSuccessScreen(
-        draft: widget.draft,
-        reference: makeReference('BIL'),
-        token: makeToken(),
-      ),
-    );
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final d = widget.draft;
-    return StepScaffold(
+    final d = draft;
+    return PayConfirmScreen(
       eyebrow: 'BILLS · ELECTRICITY',
       counter: '03 / 04',
       title: 'Confirm bill payment',
-      headerLabel: 'Cancel',
-      onHeaderAction: () => goHome(context),
-      primaryLabel: 'Pay ${formatLeone(d.total)}',
-      onPrimary: _pin.length == 4 ? _pay : null,
-      secondaryLabel: 'Edit payment',
-      onSecondary: () => Navigator.maybePop(context),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          AmountBanner(
-            label: 'Total debit · includes ${formatLeone(BillDraft.fee)} fee',
-            value: formatLeone(d.total),
-          ),
-          const SizedBox(height: 12),
-          DetailsCard(
-            rows: [
-              ('Provider', '${d.provider} · ${d.typeLabel}'),
-              ('Customer', _titleCase(d.customer)),
-              ('Meter number', d.meter),
-              ('Amount / fee', '${formatLeone(d.amount)} / ${formatLeone(BillDraft.fee)}'),
-              ('Token delivery', d.phone),
-              ('Balance after', formatLeone(kAccountBalance - d.total)),
-            ],
-          ),
-          const SizedBox(height: 20),
-          const Text(
-            'Authorize with transaction PIN',
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 12),
-          OtpInput(
-            length: 4,
-            obscure: true,
-            onChanged: (v) => setState(() => _pin = v),
-          ),
-          const SizedBox(height: 16),
-          const InfoBanner(
-            text: 'Check the meter number. Tokens are only valid for the meter paid for.',
-          ),
-        ],
+      bannerLabel: 'Total debit · includes ${formatLeone(d.fee)} fee',
+      total: d.total,
+      notice: 'Check the meter number. Tokens are only valid for the meter paid for.',
+      rows: [
+        ('Provider', '${d.provider} · ${d.typeLabel}'),
+        ('Customer', _titleCase(d.customer)),
+        ('Meter number', d.meter),
+        ('Amount / fee', '${formatLeone(d.amount)} / ${formatLeone(d.fee)}'),
+        ('Token delivery', d.phone),
+        ('Balance after', formatLeone(appState.balance - d.total)),
+      ],
+      onPay: (pin, key) => api.payElectricity(
+        provider: d.provider,
+        prepaid: d.prepaid,
+        meter: d.meter,
+        customer: d.customer,
+        amount: d.amount,
+        phone: d.phone,
+        pin: pin,
+        idempotencyKey: key,
       ),
+      successBuilder: (result) => BillSuccessScreen(draft: d, result: result),
     );
   }
 }
@@ -351,75 +361,61 @@ String _titleCase(String s) => s
 
 /// Bills 4/4: result with the electricity token.
 class BillSuccessScreen extends StatelessWidget {
-  const BillSuccessScreen({
-    super.key,
-    required this.draft,
-    required this.reference,
-    required this.token,
-  });
+  const BillSuccessScreen({super.key, required this.draft, required this.result});
 
   final BillDraft draft;
-  final String reference;
-  final String token;
-
-  /// Sample rate (leone per kWh) for the units line. Your vendor returns real units.
-  static const double _rate = 4.2;
+  final PaymentResult result;
 
   @override
   Widget build(BuildContext context) {
-    final units = (draft.amount / _rate).toStringAsFixed(1);
+    final txn = result.transaction;
+    final pending = isPending(txn);
+    final token = txn.token;
     return StepScaffold(
       eyebrow: 'BILLS · ELECTRICITY',
       counter: '04 / 04',
-      title: 'Payment successful',
+      title: pending ? 'Payment pending' : 'Payment successful',
       headerLabel: 'Done',
       onBack: () => goHome(context),
       onHeaderAction: () => goHome(context),
-      primaryLabel: 'Share receipt',
-      // TODO: share the receipt (for example with the share_plus package).
-      onPrimary: () => showMessage(context, 'Sharing is not connected yet.'),
+      primaryLabel: 'Copy receipt',
+      onPrimary: () => copyReceipt(context, txn),
       secondaryLabel: 'Back to home',
       onSecondary: () => goHome(context),
       child: Column(
         children: [
           ResultHeader(
-            headline: '${formatLeone(draft.amount)} paid',
+            headline: pending ? '${formatLeone(draft.amount)} being processed' : '${formatLeone(draft.amount)} paid',
             detail: '${draft.provider} · ${draft.typeLabel} meter ${draft.meter}',
           ),
-          const SizedBox(height: 20),
-          AmountBanner(
-            label: 'Electricity token · 20 digits',
-            value: token,
-            background: TpColors.tint,
-            labelColor: TpColors.muted,
-            valueColor: TpColors.navy,
-            valueSize: 22,
-            center: true,
-            child: TpWhiteButton(
-              label: 'Copy token',
-              icon: Icons.copy_outlined,
-              onPressed: () async {
-                await Clipboard.setData(ClipboardData(text: token.replaceAll(' ', '')));
-                if (context.mounted) showMessage(context, 'Token copied.');
-              },
+          if (token != null && token.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            AmountBanner(
+              label: 'Electricity token',
+              value: token,
+              background: TpColors.tint,
+              labelColor: TpColors.muted,
+              valueColor: TpColors.navy,
+              valueSize: 22,
+              center: true,
+              child: TpWhiteButton(
+                label: 'Copy token',
+                icon: Icons.copy_outlined,
+                onPressed: () => copyText(context, token.replaceAll(' ', ''), 'Token copied.'),
+              ),
             ),
-          ),
+          ],
           const SizedBox(height: 12),
-          DetailsCard(
-            rows: [
-              ('Customer', _titleCase(draft.customer)),
-              ('Units purchased', '$units kWh'),
-              ('Total / fee', '${formatLeone(draft.total)} / ${formatLeone(BillDraft.fee)}'),
-              ('Reference', reference),
-            ],
-          ),
+          DetailsCard(rows: receiptRows(txn)),
           const SizedBox(height: 12),
           InfoBanner(
-            icon: Icons.check_circle_outline,
+            icon: pending ? Icons.schedule : Icons.check_circle_outline,
             background: TpColors.greenTint,
             accent: TpColors.green,
             textColor: TpColors.green,
-            text: 'Token sent by SMS · Balance ${formatLeone(kAccountBalance - draft.total)}',
+            text: pending
+                ? 'The provider has not confirmed yet. ${draft.prepaid ? 'Your token will show in Transactions once it is ready. ' : ''}Balance ${formatLeone(result.balance)}'
+                : 'Balance ${formatLeone(result.balance)}',
           ),
         ],
       ),

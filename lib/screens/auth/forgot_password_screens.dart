@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../services/api.dart';
+import '../../services/trustpay_api.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/nav.dart';
 import '../../widgets/common.dart';
@@ -21,6 +23,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final _form = GlobalKey<FormState>();
   final _id = TextEditingController();
   bool _sending = false;
+  String? _error;
 
   @override
   void dispose() {
@@ -30,12 +33,19 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   Future<void> _send() async {
     if (!_form.currentState!.validate()) return;
-    setState(() => _sending = true);
-    // TODO: ask your API to send a reset code.
-    await Future<void>.delayed(const Duration(milliseconds: 800));
-    if (!mounted) return;
-    setState(() => _sending = false);
-    openScreen(context, ResetCodeScreen(contact: _id.text.trim()));
+    setState(() {
+      _sending = true;
+      _error = null;
+    });
+    try {
+      final devCode = await api.forgotPassword(_id.text.trim());
+      if (!mounted) return;
+      openScreen(context, ResetCodeScreen(contact: _id.text.trim(), devCode: devCode));
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
   }
 
   @override
@@ -58,11 +68,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             TpField(
               label: 'Phone number or email',
               controller: _id,
-              hint: 'aminata.kamara@example.com',
+              hint: 'you@example.com or 076 123 456',
               keyboardType: TextInputType.emailAddress,
               validator: _required,
             ),
             const SizedBox(height: 16),
+            if (_error != null) ...[ErrorBanner(_error!), const SizedBox(height: 16)],
             const InfoBanner(text: 'We will only send the code to the contact saved on your account.'),
           ],
         ),
@@ -73,9 +84,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
 /// Reset 2/4: enter the 6-digit code.
 class ResetCodeScreen extends StatefulWidget {
-  const ResetCodeScreen({super.key, required this.contact});
+  const ResetCodeScreen({super.key, required this.contact, this.devCode});
 
   final String contact;
+
+  /// Only set by a sandbox server (OTP_DEBUG), so the app can be tested without SMS.
+  final String? devCode;
 
   @override
   State<ResetCodeScreen> createState() => _ResetCodeScreenState();
@@ -83,6 +97,46 @@ class ResetCodeScreen extends StatefulWidget {
 
 class _ResetCodeScreenState extends State<ResetCodeScreen> {
   String _code = '';
+  bool _busy = false;
+  String? _error;
+  String? _devCode;
+
+  @override
+  void initState() {
+    super.initState();
+    _devCode = widget.devCode;
+  }
+
+  Future<void> _verify() async {
+    if (_busy) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final token = await api.verifyResetCode(widget.contact, _code);
+      if (!mounted) return;
+      openScreen(context, NewPasswordScreen(resetToken: token));
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _resend() async {
+    try {
+      final devCode = await api.forgotPassword(widget.contact);
+      if (!mounted) return;
+      setState(() {
+        _devCode = devCode;
+        _error = null;
+      });
+      showMessage(context, 'A new code is on its way.');
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -90,23 +144,31 @@ class _ResetCodeScreenState extends State<ResetCodeScreen> {
       eyebrow: 'RESET PASSWORD',
       counter: '02 / 04',
       title: 'Enter the code',
-      subtitle: 'We sent a 6-digit code to ${widget.contact}.',
+      subtitle: 'If an account matches ${widget.contact}, we sent it a 6-digit code.',
       primaryLabel: 'Verify code',
-      // TODO: check the code with your API.
-      onPrimary: _code.length == 6 ? () => openScreen(context, const NewPasswordScreen()) : null,
+      primaryLoading: _busy,
+      onPrimary: _code.length == 6 && !_busy ? _verify : null,
       secondaryLabel: 'Change contact',
       onSecondary: () => Navigator.maybePop(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (_devCode != null) ...[
+            InfoBanner(
+              text: 'Test server: your code is $_devCode. Real SMS is not connected yet.',
+              icon: Icons.science_outlined,
+            ),
+            const SizedBox(height: 16),
+          ],
           OtpInput(length: 6, autofocus: true, boxHeight: 54, onChanged: (v) => setState(() => _code = v)),
           const SizedBox(height: 12),
           Center(
             child: TextButton(
-              onPressed: () => showMessage(context, 'A new code is on its way.'),
+              onPressed: _resend,
               child: const Text('Resend code', style: TextStyle(fontSize: 14)),
             ),
           ),
+          if (_error != null) ...[const SizedBox(height: 8), ErrorBanner(_error!)],
           const SizedBox(height: 8),
           const InfoBanner(text: 'Never share this code. TrustPay will never ask for it.'),
         ],
@@ -117,7 +179,9 @@ class _ResetCodeScreenState extends State<ResetCodeScreen> {
 
 /// Reset 3/4: choose a new password.
 class NewPasswordScreen extends StatefulWidget {
-  const NewPasswordScreen({super.key});
+  const NewPasswordScreen({super.key, required this.resetToken});
+
+  final String resetToken;
 
   @override
   State<NewPasswordScreen> createState() => _NewPasswordScreenState();
@@ -128,6 +192,7 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
   final _password = TextEditingController();
   final _confirm = TextEditingController();
   bool _saving = false;
+  String? _error;
 
   @override
   void dispose() {
@@ -138,11 +203,19 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
 
   Future<void> _save() async {
     if (!_form.currentState!.validate()) return;
-    setState(() => _saving = true);
-    // TODO: send the new password to your API.
-    await Future<void>.delayed(const Duration(milliseconds: 800));
-    if (!mounted) return;
-    replaceScreen(context, const ResetDoneScreen());
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      await api.resetPassword(widget.resetToken, _password.text);
+      if (!mounted) return;
+      replaceScreen(context, const ResetDoneScreen());
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 
   @override
@@ -151,7 +224,7 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
       eyebrow: 'RESET PASSWORD',
       counter: '03 / 04',
       title: 'Choose a new password',
-      subtitle: 'Use at least 8 characters.',
+      subtitle: 'At least 8 characters, a number and a symbol.',
       primaryLabel: 'Reset password',
       primaryLoading: _saving,
       onPrimary: _saving ? null : _save,
@@ -165,7 +238,11 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
               label: 'New password',
               controller: _password,
               isPassword: true,
-              validator: (v) => (v == null || v.length < 8) ? 'Use at least 8 characters' : null,
+              validator: (v) {
+                if (v == null || v.isEmpty) return 'Required';
+                final ok = v.length >= 8 && RegExp(r'[0-9]').hasMatch(v) && RegExp(r'[^A-Za-z0-9]').hasMatch(v);
+                return ok ? null : 'At least 8 characters, a number and a symbol';
+              },
             ),
             const SizedBox(height: 16),
             TpField(
@@ -174,6 +251,7 @@ class _NewPasswordScreenState extends State<NewPasswordScreen> {
               isPassword: true,
               validator: (v) => v == _password.text ? null : 'Passwords do not match',
             ),
+            if (_error != null) ...[const SizedBox(height: 16), ErrorBanner(_error!)],
           ],
         ),
       ),

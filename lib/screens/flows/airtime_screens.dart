@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
 
-import '../../data/sample_data.dart';
+import '../../models/models.dart';
+import '../../services/app_state.dart';
+import '../../services/trustpay_api.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
 import '../../utils/nav.dart';
 import '../../widgets/common.dart';
 import '../../widgets/flow_widgets.dart';
-import '../../widgets/otp_input.dart';
 import '../../widgets/step_scaffold.dart';
+import 'generic_flow.dart';
 
-bool _isOwnNumber(String phone) =>
-    phone.replaceAll(' ', '') == kPhone.replaceAll(' ', '');
+bool _isOwnNumber(String phone) => samePhone(phone, appState.me.phone);
 
 /// Airtime & data 1/3: service, network and phone number.
 class AirtimeDataScreen extends StatefulWidget {
@@ -22,9 +23,9 @@ class AirtimeDataScreen extends StatefulWidget {
 
 class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
   final _form = GlobalKey<FormState>();
-  final _phone = TextEditingController(text: kPhone);
+  final _phone = TextEditingController(text: appState.me.phone);
   int _tab = 1; // 0 airtime, 1 data
-  String _network = kNetworks.first;
+  String _network = appState.cat.networks.isEmpty ? '' : appState.cat.networks.first;
 
   @override
   void dispose() {
@@ -46,6 +47,7 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
   @override
   Widget build(BuildContext context) {
     final own = _isOwnNumber(_phone.text);
+    final networks = appState.cat.networks;
     return StepScaffold(
       eyebrow: 'AIRTIME & DATA · FROM SERVICES',
       counter: '01 / 03',
@@ -54,7 +56,7 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
       headerLabel: 'Cancel',
       onHeaderAction: () => goHome(context),
       primaryLabel: 'Continue with ${_tab == 0 ? 'Airtime' : 'Data'}',
-      onPrimary: _continue,
+      onPrimary: _network.isEmpty ? null : _continue,
       secondaryLabel: 'Back to home',
       onSecondary: () => goHome(context),
       child: Form(
@@ -72,13 +74,13 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
             const SizedBox(height: 10),
             Row(
               children: [
-                for (var i = 0; i < kNetworks.length; i++) ...[
+                for (var i = 0; i < networks.length; i++) ...[
                   if (i > 0) const SizedBox(width: 10),
                   Expanded(
                     child: ChoiceBox(
-                      label: kNetworks[i],
-                      selected: kNetworks[i] == _network,
-                      onTap: () => setState(() => _network = kNetworks[i]),
+                      label: networks[i],
+                      selected: networks[i] == _network,
+                      onTap: () => setState(() => _network = networks[i]),
                     ),
                   ),
                 ],
@@ -92,14 +94,14 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
               onChanged: (_) => setState(() {}),
               suffix: const Icon(Icons.contacts_outlined, color: TpColors.primary),
               validator: (v) {
-                final digits = (v ?? '').replaceAll(' ', '');
-                return digits.length == 9 ? null : 'Enter a 9-digit number, like 076 123 456';
+                final digits = digitsOf(v ?? '');
+                return digits.length >= 8 && digits.length <= 12 ? null : 'Enter a valid phone number';
               },
             ),
             if (own) ...[
               const SizedBox(height: 8),
               Text(
-                'Aminata’s number · $_network Sierra Leone',
+                'Your number · $_network Sierra Leone',
                 style: const TextStyle(fontSize: 13, color: TpColors.muted),
               ),
             ],
@@ -120,7 +122,7 @@ class _AirtimeDataScreenState extends State<AirtimeDataScreen> {
 }
 
 String _recipientLine(String network, String phone) =>
-    '$network · $phone${_isOwnNumber(phone) ? ' · Aminata' : ''}';
+    '$network · $phone${_isOwnNumber(phone) ? ' · Your number' : ''}';
 
 /// Airtime 2/3: amount and PIN.
 class BuyAirtimeScreen extends StatefulWidget {
@@ -137,7 +139,6 @@ class _BuyAirtimeScreenState extends State<BuyAirtimeScreen> {
   static const _quick = [20, 50, 100, 200];
 
   final _amount = TextEditingController(text: '100');
-  String _pin = '';
 
   @override
   void dispose() {
@@ -147,18 +148,41 @@ class _BuyAirtimeScreenState extends State<BuyAirtimeScreen> {
 
   double get _value => parseAmount(_amount.text);
 
-  bool get _valid => _value > 0 && _value <= kAccountBalance && _pin.length == 4;
+  bool get _valid => _value > 0 && _value <= appState.balance;
 
-  void _pay() {
-    // TODO: verify the PIN and buy airtime with your API.
-    replaceScreen(
+  void _review() {
+    final amount = _value;
+    final network = widget.network;
+    final phone = widget.phone;
+    openScreen(
       context,
-      PurchaseSuccessScreen(
-        isData: false,
-        network: widget.network,
-        phone: widget.phone,
-        amount: _value,
-        reference: makeReference('AIR'),
+      PayConfirmScreen(
+        eyebrow: 'AIRTIME & DATA · AIRTIME PATH',
+        counter: '02 / 03',
+        title: 'Confirm airtime',
+        bannerLabel: '$network airtime',
+        total: amount,
+        notice: 'Confirm the number. Top-ups cannot be reversed once delivered.',
+        rows: [
+          ('Product', '$network airtime'),
+          ('Recipient', phone),
+          ('Amount', formatLeone(amount)),
+          ('Balance after', formatLeone(appState.balance - amount)),
+        ],
+        onPay: (pin, key) => api.buyAirtime(
+          network: network,
+          phone: phone,
+          amount: amount,
+          pin: pin,
+          idempotencyKey: key,
+        ),
+        successBuilder: (result) => PurchaseSuccessScreen(
+          isData: false,
+          network: network,
+          phone: phone,
+          amount: amount,
+          result: result,
+        ),
       ),
     );
   }
@@ -172,8 +196,8 @@ class _BuyAirtimeScreenState extends State<BuyAirtimeScreen> {
       subtitle: _recipientLine(widget.network, widget.phone),
       headerLabel: 'Cancel',
       onHeaderAction: () => goHome(context),
-      primaryLabel: 'Pay ${formatLeone(_value)}',
-      onPrimary: _valid ? _pay : null,
+      primaryLabel: 'Review ${formatLeone(_value)}',
+      onPrimary: _valid ? _review : null,
       secondaryLabel: 'Back to service selection',
       onSecondary: () => Navigator.maybePop(context),
       child: Column(
@@ -204,25 +228,13 @@ class _BuyAirtimeScreenState extends State<BuyAirtimeScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          DetailsCard(
-            rows: [
-              ('Product', '${widget.network} airtime'),
-              ('Recipient', widget.phone),
-              ('Amount / fee', '${formatLeone(_value)} / ${formatLeone(0)}'),
-              ('Total debit', formatLeone(_value)),
-              ('Balance after', formatLeone(kAccountBalance - _value)),
-            ],
+          Text(
+            '${balanceLine()}${_value > appState.balance ? ' · Insufficient balance' : ''}',
+            style: const TextStyle(fontSize: 13, color: TpColors.muted),
           ),
-          const SizedBox(height: 20),
-          const Text(
-            'Authorize with transaction PIN',
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 12),
-          OtpInput(length: 4, obscure: true, onChanged: (v) => setState(() => _pin = v)),
           const SizedBox(height: 16),
           const InfoBanner(
-            text: 'Review complete. Your airtime will be delivered immediately after payment.',
+            text: 'You will review the details and enter your PIN on the next step.',
           ),
         ],
       ),
@@ -279,29 +291,58 @@ class BuyDataScreen extends StatefulWidget {
 }
 
 class _BuyDataScreenState extends State<BuyDataScreen> {
-  int _plan = 1;
-  String _pin = '';
+  int _plan = 0;
 
-  DataPlan get _selected => kDataPlans[_plan];
+  List<DataPlan> get _plans => appState.cat.dataPlans;
 
-  void _pay() {
-    // TODO: verify the PIN and buy the bundle with your API.
-    replaceScreen(
+  void _review() {
+    if (_plans.isEmpty) return;
+    final plan = _plans[_plan];
+    if (plan.price > appState.balance) {
+      showMessage(context, 'Insufficient balance for this bundle.');
+      return;
+    }
+    final network = widget.network;
+    final phone = widget.phone;
+    openScreen(
       context,
-      PurchaseSuccessScreen(
-        isData: true,
-        network: widget.network,
-        phone: widget.phone,
-        amount: _selected.price,
-        plan: _selected,
-        reference: makeReference('DAT'),
+      PayConfirmScreen(
+        eyebrow: 'AIRTIME & DATA · DATA PATH',
+        counter: '02 / 03',
+        title: 'Confirm data bundle',
+        bannerLabel: '$network ${plan.size}',
+        total: plan.price,
+        notice: 'Confirm the number. Bundles cannot be reversed once delivered.',
+        rows: [
+          ('Product', '$network Data · ${plan.size}'),
+          ('Validity', plan.validity),
+          ('Recipient', phone),
+          ('Amount', formatLeone(plan.price)),
+          ('Balance after', formatLeone(appState.balance - plan.price)),
+        ],
+        onPay: (pin, key) => api.buyData(
+          network: network,
+          phone: phone,
+          planId: plan.id,
+          pin: pin,
+          idempotencyKey: key,
+        ),
+        successBuilder: (result) => PurchaseSuccessScreen(
+          isData: true,
+          network: network,
+          phone: phone,
+          amount: plan.price,
+          plan: plan,
+          result: result,
+        ),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final plan = _selected;
+    final plans = _plans;
+    final plan = plans.isEmpty ? null : plans[_plan];
     return StepScaffold(
       eyebrow: 'AIRTIME & DATA · DATA PATH',
       counter: '02 / 03',
@@ -309,34 +350,33 @@ class _BuyDataScreenState extends State<BuyDataScreen> {
       subtitle: _recipientLine(widget.network, widget.phone),
       headerLabel: 'Cancel',
       onHeaderAction: () => goHome(context),
-      primaryLabel: 'Pay ${formatLeone(plan.price)}',
-      onPrimary: _pin.length == 4 ? _pay : null,
+      primaryLabel: plan == null ? 'Review' : 'Review ${formatLeone(plan.price)}',
+      onPrimary: plan == null ? null : _review,
       secondaryLabel: 'Back to service selection',
       onSecondary: () => Navigator.maybePop(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          for (var i = 0; i < kDataPlans.length; i++) ...[
+          if (plans.isEmpty)
+            const Text('No data bundles are available right now.', style: TextStyle(fontSize: 14, color: TpColors.muted)),
+          for (var i = 0; i < plans.length; i++) ...[
             _PlanTile(
-              plan: kDataPlans[i],
+              plan: plans[i],
               selected: i == _plan,
               onTap: () => setState(() => _plan = i),
             ),
             const SizedBox(height: 10),
           ],
           const SizedBox(height: 6),
-          Text(
-            'Fee ${formatLeone(0)} · Total ${formatLeone(plan.price)}\n'
-            'Balance after purchase: ${formatLeone(kAccountBalance - plan.price)}',
-            style: const TextStyle(fontSize: 14, height: 1.45, color: TpColors.muted),
+          if (plan != null)
+            Text(
+              'Total ${formatLeone(plan.price)} · ${balanceLine()}',
+              style: const TextStyle(fontSize: 14, height: 1.45, color: TpColors.muted),
+            ),
+          const SizedBox(height: 16),
+          const InfoBanner(
+            text: 'You will review the details and enter your PIN on the next step.',
           ),
-          const SizedBox(height: 20),
-          const Text(
-            'Authorize with transaction PIN',
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 12),
-          OtpInput(length: 4, obscure: true, onChanged: (v) => setState(() => _pin = v)),
         ],
       ),
     );
@@ -408,7 +448,7 @@ class PurchaseSuccessScreen extends StatelessWidget {
     required this.network,
     required this.phone,
     required this.amount,
-    required this.reference,
+    required this.result,
     this.plan,
   });
 
@@ -416,35 +456,25 @@ class PurchaseSuccessScreen extends StatelessWidget {
   final String network;
   final String phone;
   final double amount;
-  final String reference;
+  final PaymentResult result;
   final DataPlan? plan;
 
   @override
   Widget build(BuildContext context) {
     final p = plan;
-    final expiry = p == null ? null : DateTime.now().add(Duration(days: p.days));
-    final rows = <(String, String)>[
-      (
-        'Selected product',
-        isData && p != null ? '$network Data · ${p.size}' : '$network airtime',
-      ),
-      if (isData && expiry != null) ('Validity', '${p!.days} days · to ${formatShortDate(expiry)}'),
-      ('Phone number', phone),
-      ('Amount / fee', '${formatLeone(amount)} / ${formatLeone(0)}'),
-      ('Total paid', formatLeone(amount)),
-      ('Reference', reference),
-    ];
+    final txn = result.transaction;
+    final pending = isPending(txn);
+    final what = isData && p != null ? p.size : formatLeone(amount);
 
     return StepScaffold(
       eyebrow: 'AIRTIME & DATA · SHARED CONFIRMATION',
       counter: '03 / 03',
-      title: 'Purchase successful',
+      title: pending ? 'Purchase pending' : 'Purchase successful',
       headerLabel: 'Done',
       onBack: () => goHome(context),
       onHeaderAction: () => goHome(context),
-      primaryLabel: 'Share receipt',
-      // TODO: share the receipt (for example with the share_plus package).
-      onPrimary: () => showMessage(context, 'Sharing is not connected yet.'),
+      primaryLabel: 'Copy receipt',
+      onPrimary: () => copyReceipt(context, txn),
       secondaryLabel: 'Back to home',
       onSecondary: () => goHome(context),
       child: Column(
@@ -452,20 +482,22 @@ class PurchaseSuccessScreen extends StatelessWidget {
           SegmentedTabs(labels: const ['Airtime', 'Data'], index: isData ? 1 : 0),
           const SizedBox(height: 20),
           ResultHeader(
-            headline: isData ? 'Your data is ready' : 'Your airtime is ready',
-            detail: isData && p != null
-                ? '${p.size} has been delivered to $phone.'
-                : '${formatLeone(amount)} has been delivered to $phone.',
+            headline: pending
+                ? 'Your ${isData ? 'data' : 'airtime'} is being processed'
+                : (isData ? 'Your data is ready' : 'Your airtime is ready'),
+            detail: pending
+                ? '$what for $phone is pending. We will update it in Transactions once $network confirms.'
+                : '$what has been delivered to $phone.',
           ),
           const SizedBox(height: 20),
-          DetailsCard(rows: rows),
+          DetailsCard(rows: receiptRows(txn)),
           const SizedBox(height: 12),
           InfoBanner(
-            icon: Icons.check_circle_outline,
+            icon: pending ? Icons.schedule : Icons.check_circle_outline,
             background: TpColors.greenTint,
             accent: TpColors.green,
             textColor: TpColors.green,
-            text: 'Available balance · ${formatLeone(kAccountBalance - amount)}',
+            text: 'Available balance · ${formatLeone(result.balance)}',
           ),
         ],
       ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../screens/auth_pager.dart';
+import '../services/app_state.dart';
 import '../theme/app_theme.dart';
 import 'nav.dart';
 
@@ -31,7 +32,8 @@ Future<void> confirmLogout(BuildContext context) async {
     ),
   );
   if (ok != true || !context.mounted) return;
-  // TODO: clear the saved session / token here.
+  await appState.signOut();
+  if (!context.mounted) return;
   Navigator.of(context).pushAndRemoveUntil(
     SwipeRoute<void>(page: const AuthPager(), fromRight: false),
     (_) => false,

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
-import '../../data/sample_data.dart';
+import '../../models/models.dart';
+import '../../services/api.dart';
+import '../../services/app_state.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
 import '../../utils/nav.dart';
@@ -9,9 +12,12 @@ import '../../widgets/flow_widgets.dart';
 import '../../widgets/otp_input.dart';
 import '../../widgets/step_scaffold.dart';
 
-/// Review-and-authorize step shared by the newer flows (TV, internet, cards,
-/// send to a TrustPay user). Shows the total, the details, a PIN or code box,
-/// then replaces itself with the screen from [successBuilder].
+/// Review-and-authorize step shared by every payment flow. Shows the total, the details and a PIN
+/// (or code) box. On "Pay" it calls [onPay] with the PIN and an idempotency key, updates the
+/// balance, and replaces itself with the screen from [successBuilder].
+///
+/// The idempotency key is created once per screen, so tapping Pay again after a dropped connection
+/// can never charge the customer twice.
 class PayConfirmScreen extends StatefulWidget {
   const PayConfirmScreen({
     super.key,
@@ -21,14 +27,13 @@ class PayConfirmScreen extends StatefulWidget {
     required this.bannerLabel,
     required this.total,
     required this.rows,
-    required this.referenceCode,
+    required this.onPay,
     required this.successBuilder,
     this.payLabel = 'Pay',
     this.notice,
     this.pinLabel = 'Authorize with transaction PIN',
     this.pinLength = 4,
     this.obscure = true,
-    this.onConfirmed,
   });
 
   final String eyebrow;
@@ -38,33 +43,57 @@ class PayConfirmScreen extends StatefulWidget {
   final double total;
   final List<(String, String)> rows;
 
-  /// Short code for the receipt reference, such as `TVB` giving `TP-TVB-...`.
-  final String referenceCode;
-  final Widget Function(String reference) successBuilder;
+  /// Sends the payment. [secret] is the PIN (or the approval code when [pinLength] is 6).
+  final Future<PaymentResult> Function(String secret, String idempotencyKey) onPay;
+  final Widget Function(PaymentResult result) successBuilder;
   final String payLabel;
   final String? notice;
   final String pinLabel;
   final int pinLength;
   final bool obscure;
 
-  /// Runs once the payment goes through, for example to update a balance.
-  final VoidCallback? onConfirmed;
-
   @override
   State<PayConfirmScreen> createState() => _PayConfirmScreenState();
 }
 
 class _PayConfirmScreenState extends State<PayConfirmScreen> {
+  final String _key = newIdempotencyKey();
   String _pin = '';
   bool _loading = false;
+  String? _error;
+  int _round = 0; // changes to clear the PIN boxes after a wrong PIN
 
   Future<void> _pay() async {
-    setState(() => _loading = true);
-    // TODO: verify the PIN or code and submit the payment with your API.
-    await Future<void>.delayed(const Duration(milliseconds: 900));
-    if (!mounted) return;
-    widget.onConfirmed?.call();
-    replaceScreen(context, widget.successBuilder(makeReference(widget.referenceCode)));
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final result = await widget.onPay(_pin, _key);
+      if (!mounted) return;
+      appState.applyPayment(result);
+      replaceScreen(context, widget.successBuilder(result));
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      var message = e.message;
+      if (e.status == 0) {
+        message = '$message If you already tried to pay, check Transactions before paying again.';
+      }
+      setState(() {
+        _loading = false;
+        _error = message;
+        if (e.isBadPin || e.status == 422 || e.status == 402 || e.status == 502) {
+          _pin = '';
+          _round++;
+        }
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = 'Something went wrong. Check Transactions before paying again.';
+      });
+    }
   }
 
   @override
@@ -90,10 +119,21 @@ class _PayConfirmScreenState extends State<PayConfirmScreen> {
           Text(widget.pinLabel, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
           const SizedBox(height: 12),
           OtpInput(
+            key: ValueKey(_round),
             length: widget.pinLength,
             obscure: widget.obscure,
             onChanged: (v) => setState(() => _pin = v),
           ),
+          if (_error != null) ...[
+            const SizedBox(height: 16),
+            InfoBanner(
+              icon: Icons.error_outline,
+              background: const Color(0xFFFDECEC),
+              accent: TpColors.danger,
+              textColor: TpColors.danger,
+              text: _error!,
+            ),
+          ],
           if (widget.notice != null) ...[
             const SizedBox(height: 16),
             InfoBanner(text: widget.notice!),
@@ -115,7 +155,7 @@ class PaySuccessScreen extends StatelessWidget {
     required this.rows,
     this.extra,
     this.notice,
-    this.primaryLabel = 'Share receipt',
+    this.primaryLabel = 'Copy receipt',
     this.onPrimary,
   });
 
@@ -130,7 +170,7 @@ class PaySuccessScreen extends StatelessWidget {
   final String? notice;
   final String primaryLabel;
 
-  /// Defaults to a "sharing is not connected" message.
+  /// Defaults to copying the details to the clipboard.
   final VoidCallback? onPrimary;
 
   @override
@@ -143,8 +183,7 @@ class PaySuccessScreen extends StatelessWidget {
       onBack: () => goHome(context),
       onHeaderAction: () => goHome(context),
       primaryLabel: primaryLabel,
-      // TODO: share the receipt (for example with the share_plus package).
-      onPrimary: onPrimary ?? () => showMessage(context, 'Sharing is not connected yet.'),
+      onPrimary: onPrimary ?? () => copyText(context, rows.map((r) => '${r.$1}: ${r.$2}').join('\n'), 'Receipt copied.'),
       secondaryLabel: 'Back to home',
       onSecondary: () => goHome(context),
       child: Column(
@@ -199,4 +238,20 @@ class AmountChips extends StatelessWidget {
 }
 
 /// Balance line used under amount fields.
-String balanceLine() => 'Available balance ${formatLeone(kAccountBalance)}';
+String balanceLine() => 'Available balance ${formatLeone(appState.balance)}';
+
+/// Copies [text] and confirms with a snackbar.
+Future<void> copyText(BuildContext context, String text, String message) async {
+  await Clipboard.setData(ClipboardData(text: text));
+  if (context.mounted) showMessage(context, message);
+}
+
+/// Copies the receipt of a transaction (falls back to its reference).
+Future<void> copyReceipt(BuildContext context, Txn t) =>
+    copyText(context, t.receipt?.toPlainText() ?? 'TrustPay reference: ${t.reference}', 'Receipt copied.');
+
+/// Detail rows for a result screen: the server's receipt rows, or reference and time as a fallback.
+List<(String, String)> receiptRows(Txn t) => t.receipt != null && t.receipt!.rows.isNotEmpty ? t.receipt!.rows : t.summaryRows;
+
+/// "Successful" or "Pending" wording for result headlines.
+bool isPending(Txn t) => t.status == 'Pending';

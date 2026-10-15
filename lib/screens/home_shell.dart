@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../services/app_state.dart';
+import '../services/api.dart';
 import '../theme/app_theme.dart';
 import '../utils/nav.dart';
 import '../utils/session.dart';
+import '../widgets/api_builder.dart';
 import '../widgets/app_drawer.dart';
 import 'account/profile_tab.dart';
 import 'admin/admin_screens.dart';
@@ -12,7 +15,8 @@ import 'flows/flows.dart';
 import 'home_tab.dart';
 import 'services_tab.dart';
 
-/// Holds the bottom navigation: Home, Services, POS and Profile.
+/// Loads the customer and the server's catalog, then shows the app. Every screen inside can
+/// rely on `appState.me` and `appState.cat` being present.
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key});
 
@@ -21,6 +25,65 @@ class HomeShell extends StatefulWidget {
 }
 
 class _HomeShellState extends State<HomeShell> {
+  Object? _error;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      await Future.wait([
+        appState.loadCatalog(),
+        appState.refreshUser(),
+      ]);
+      if (appState.user == null && apiClient.hasToken) {
+        throw const ApiException(0, 'We could not load your account. Check your connection and try again.');
+      }
+    } catch (e) {
+      _error = e;
+    }
+    if (mounted) setState(() => _loading = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return const Scaffold(
+        backgroundColor: TpColors.background,
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+    if (_error != null || appState.user == null || appState.catalog == null) {
+      return Scaffold(
+        backgroundColor: TpColors.background,
+        body: SafeArea(
+          child: ErrorRetry(
+            message: _error == null ? 'We could not load your account.' : errorMessage(_error!),
+            onRetry: _load,
+          ),
+        ),
+      );
+    }
+    return const _ShellBody();
+  }
+}
+
+class _ShellBody extends StatefulWidget {
+  const _ShellBody();
+
+  @override
+  State<_ShellBody> createState() => _ShellBodyState();
+}
+
+class _ShellBodyState extends State<_ShellBody> {
   int _tab = 0;
   final _scaffoldKey = GlobalKey<ScaffoldState>();
 

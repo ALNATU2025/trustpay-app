@@ -4,10 +4,6 @@ import 'package:flutter/services.dart';
 import '../theme/app_theme.dart';
 import 'motion.dart';
 
-/// The small "Illustrative data · All amounts in Leones (SLE)" line from the designs.
-/// Set to false before release.
-const bool kShowIllustrativeNote = true;
-
 class TpLogo extends StatelessWidget {
   const TpLogo({super.key, this.width, this.height});
 
@@ -146,6 +142,22 @@ class SecondaryButton extends StatelessWidget {
   }
 }
 
+/// A red message under a form when the server says no.
+class ErrorBanner extends StatelessWidget {
+  const ErrorBanner(this.text, {super.key});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => InfoBanner(
+        text: text,
+        icon: Icons.error_outline,
+        background: const Color(0xFFFDECEC),
+        accent: TpColors.danger,
+        textColor: TpColors.danger,
+      );
+}
+
 class InfoBanner extends StatelessWidget {
   const InfoBanner({
     super.key,
@@ -247,23 +259,6 @@ class PageDots extends StatelessWidget {
           ),
         );
       }),
-    );
-  }
-}
-
-class IllustrativeNote extends StatelessWidget {
-  const IllustrativeNote({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.only(top: 12),
-      child: Center(
-        child: Text(
-          'Illustrative data · All amounts in Leones (SLE)',
-          style: TextStyle(fontSize: 12, color: TpColors.muted),
-        ),
-      ),
     );
   }
 }

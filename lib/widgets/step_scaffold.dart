@@ -134,7 +134,6 @@ class StepScaffold extends StatelessWidget {
                 const SizedBox(height: 8),
                 SecondaryButton(label: secondaryLabel!, onPressed: onSecondary),
               ],
-              if (kShowIllustrativeNote) const IllustrativeNote(),
             ],
           ),
         ),

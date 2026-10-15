@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../data/sample_data.dart';
 import '../../models/models.dart';
+import '../../services/api.dart';
+import '../../services/app_state.dart';
+import '../../services/trustpay_api.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
 import '../../utils/nav.dart';
+import '../../widgets/api_builder.dart';
 import '../../widgets/common.dart';
 import '../../widgets/step_scaffold.dart';
 import 'generic_flow.dart';
@@ -50,7 +53,21 @@ bool _luhn(String number) {
   return sum % 10 == 0;
 }
 
+/// Guesses the card brand from the first digits. Only the brand and last 4 digits ever leave the app.
+String cardBrandOf(String digits) {
+  if (digits.startsWith('4')) return 'Visa';
+  final two = digits.length >= 2 ? int.tryParse(digits.substring(0, 2)) : null;
+  final four = digits.length >= 4 ? int.tryParse(digits.substring(0, 4)) : null;
+  if ((two != null && two >= 51 && two <= 55) || (four != null && four >= 2221 && four <= 2720)) {
+    return 'Mastercard';
+  }
+  return 'Card';
+}
+
 /// Add money by debit card.
+///
+/// The card number, expiry and CVV are collected here for the form only. The app sends just the
+/// last 4 digits and the brand to the server, and clears the fields as soon as they are read.
 class FundByCardScreen extends StatefulWidget {
   const FundByCardScreen({super.key});
 
@@ -65,11 +82,9 @@ class _FundByCardScreenState extends State<FundByCardScreen> {
   final _expiry = TextEditingController();
   final _cvv = TextEditingController();
 
-  /// Sample fee: 1.5% of the amount. Replace with your provider's fee.
-  static const double _feeRate = 0.015;
-
   @override
   void dispose() {
+    _clearCard();
     _amount.dispose();
     _number.dispose();
     _expiry.dispose();
@@ -77,8 +92,14 @@ class _FundByCardScreenState extends State<FundByCardScreen> {
     super.dispose();
   }
 
+  void _clearCard() {
+    _number.clear();
+    _expiry.clear();
+    _cvv.clear();
+  }
+
   double get _value => parseAmount(_amount.text);
-  double get _fee => double.parse((_value * _feeRate).toStringAsFixed(2));
+  double get _fee => appState.cat.fees.cardFundingFee(_value);
 
   String? _checkExpiry(String? v) {
     final parts = (v ?? '').split('/');
@@ -98,6 +119,9 @@ class _FundByCardScreenState extends State<FundByCardScreen> {
     final total = amount + fee;
     final digits = _number.text.replaceAll(' ', '');
     final last4 = digits.substring(digits.length - 4);
+    final brand = cardBrandOf(digits);
+    // Keep only what the server needs. The full number, expiry and CVV are wiped now.
+    setState(_clearCard);
 
     openScreen(
       context,
@@ -105,41 +129,41 @@ class _FundByCardScreenState extends State<FundByCardScreen> {
         eyebrow: 'ADD MONEY · DEBIT CARD',
         counter: '02 / 03',
         title: 'Confirm card payment',
-        bannerLabel: 'Charged to card •• $last4',
+        bannerLabel: 'Charged to $brand •• $last4',
         total: total,
-        referenceCode: 'FND',
         payLabel: 'Pay',
-        pinLabel: 'Enter the 6-digit code from your bank',
-        pinLength: 6,
-        obscure: false,
-        notice: 'Never share this code with anyone, including TrustPay staff.',
+        notice: 'Never share your PIN or card codes with anyone, including TrustPay staff. '
+            'You will need to enter your card again if you go back.',
         rows: [
           ('Funding amount', formatLeone(amount)),
           ('Card fee', formatLeone(fee)),
-          ('Card', '•• $last4'),
-          ('Balance after', formatLeone(kAccountBalance + amount)),
+          ('Total charged to card', formatLeone(total)),
+          ('Card', '$brand •• $last4'),
+          ('Balance after', formatLeone(appState.balance + amount)),
         ],
-        successBuilder: (reference) => PaySuccessScreen(
-          eyebrow: 'ADD MONEY · DEBIT CARD',
-          counter: '03 / 03',
-          headline: '${formatLeone(amount)} added',
-          detail: 'From your debit card •• $last4',
-          notice: 'New balance ${formatLeone(kAccountBalance + amount)}',
-          rows: [
-            ('Amount', formatLeone(amount)),
-            ('Card fee', formatLeone(fee)),
-            ('Total charged', formatLeone(total)),
-            ('Reference', reference),
-          ],
-        ),
+        onPay: (pin, key) async {
+          await api.verifyPin(pin);
+          return api.fundByCard(amount: amount, cardLast4: last4, brand: brand, idempotencyKey: key);
+        },
+        successBuilder: (result) {
+          final txn = result.transaction;
+          final pending = isPending(txn);
+          return PaySuccessScreen(
+            eyebrow: 'ADD MONEY · DEBIT CARD',
+            counter: '03 / 03',
+            headline: pending ? '${formatLeone(amount)} is being processed' : '${formatLeone(amount)} added',
+            detail: 'From your $brand card •• $last4',
+            notice: 'Balance ${formatLeone(result.balance)}',
+            rows: receiptRows(txn),
+            onPrimary: () => copyReceipt(context, txn),
+          );
+        },
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    // TODO: for real payments use your payment provider's card sheet instead of
-    // collecting the card number in your own form.
     return StepScaffold(
       eyebrow: 'ADD MONEY · DEBIT CARD',
       counter: '01 / 03',
@@ -167,7 +191,6 @@ class _FundByCardScreenState extends State<FundByCardScreen> {
               validator: (v) {
                 final a = parseAmount(v ?? '');
                 if (a < 5) return 'Minimum is Le 5';
-                if (a > 25000) return 'Maximum is Le 25,000 per payment';
                 return null;
               },
             ),
@@ -226,7 +249,10 @@ class _FundByCardScreenState extends State<FundByCardScreen> {
               style: const TextStyle(fontSize: 13, color: TpColors.muted),
             ),
             const SizedBox(height: 14),
-            const InfoBanner(text: 'Only enter your card on screens you trust. TrustPay never asks for your PIN.'),
+            const InfoBanner(
+              text: 'TrustPay keeps only the last 4 digits and the brand of your card. '
+                  'Your full number, expiry and CVV are never stored or sent.',
+            ),
           ],
         ),
       ),
@@ -245,6 +271,15 @@ class FundCardScreen extends StatefulWidget {
 class _FundCardScreenState extends State<FundCardScreen> {
   final _form = GlobalKey<FormState>();
   final _amount = TextEditingController();
+  CardInfo? _card;
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
 
   @override
   void dispose() {
@@ -252,13 +287,33 @@ class _FundCardScreenState extends State<FundCardScreen> {
     super.dispose();
   }
 
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final data = await api.cards();
+      if (!mounted) return;
+      setState(() {
+        _card = data.virtual;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = errorMessage(e);
+        _loading = false;
+      });
+    }
+  }
+
   double get _value => parseAmount(_amount.text);
 
   void _review() {
-    final card = virtualCardNotifier.value;
+    final card = _card;
     if (card == null || !_form.currentState!.validate()) return;
     final amount = _value;
-    final newCard = card.balance + amount;
 
     openScreen(
       context,
@@ -266,79 +321,96 @@ class _FundCardScreenState extends State<FundCardScreen> {
         eyebrow: 'CARDS · FUND CARD',
         counter: '02 / 03',
         title: 'Confirm card funding',
-        bannerLabel: 'Moves to card •• ${card.last4} · no fee',
+        bannerLabel: 'Moves to card •• ${card.last4}',
         total: amount,
-        referenceCode: 'CRD',
         payLabel: 'Fund',
         rows: [
           ('From', 'TrustPay account'),
           ('To', 'Virtual card •• ${card.last4}'),
           ('Amount', formatLeone(amount)),
-          ('Account balance after', formatLeone(kAccountBalance - amount)),
-          ('Card balance after', formatLeone(newCard)),
+          ('Account balance after', formatLeone(appState.balance - amount)),
+          ('Card balance after', formatLeone(card.balance + amount)),
         ],
-        onConfirmed: () => virtualCardNotifier.value = card.copyWith(balance: newCard),
-        successBuilder: (reference) => PaySuccessScreen(
-          eyebrow: 'CARDS · FUND CARD',
-          counter: '03 / 03',
-          headline: '${formatLeone(amount)} added to card',
-          detail: 'Virtual card •• ${card.last4}',
-          notice: 'Card balance ${formatLeone(newCard)}',
-          rows: [
-            ('Amount', formatLeone(amount)),
-            ('Card balance', formatLeone(newCard)),
-            ('Account balance', formatLeone(kAccountBalance - amount)),
-            ('Reference', reference),
-          ],
-        ),
+        onPay: (pin, key) => api.fundVirtualCard(amount: amount, pin: pin, idempotencyKey: key),
+        successBuilder: (result) {
+          final txn = result.transaction;
+          final pending = isPending(txn);
+          final newCard = result.card;
+          return PaySuccessScreen(
+            eyebrow: 'CARDS · FUND CARD',
+            counter: '03 / 03',
+            headline: pending ? '${formatLeone(amount)} is being processed' : '${formatLeone(amount)} added to card',
+            detail: 'Virtual card •• ${card.last4}',
+            notice: newCard != null
+                ? 'Card balance ${formatLeone(newCard.balance)}'
+                : 'Account balance ${formatLeone(result.balance)}',
+            rows: receiptRows(txn),
+            onPrimary: () => copyReceipt(context, txn),
+          );
+        },
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final card = virtualCardNotifier.value;
+    final card = _card;
+    final String subtitle;
+    if (_loading) {
+      subtitle = 'Loading your card…';
+    } else if (card == null) {
+      subtitle = _error ?? 'Create a virtual card first.';
+    } else {
+      subtitle = 'Virtual card •• ${card.last4} · Balance ${formatLeone(card.balance)}';
+    }
     return StepScaffold(
       eyebrow: 'CARDS · FUND CARD',
       counter: '01 / 03',
       title: 'Fund your card',
-      subtitle: card == null ? 'Create a virtual card first.' : 'Virtual card •• ${card.last4} · Balance ${formatLeone(card.balance)}',
+      subtitle: subtitle,
       headerLabel: 'Cancel',
       onHeaderAction: () => goHome(context),
       primaryLabel: 'Review funding',
       onPrimary: card == null ? null : _review,
       secondaryLabel: 'Back',
       onSecondary: () => Navigator.maybePop(context),
-      child: Form(
-        key: _form,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            TpField(
-              label: 'Amount to add',
-              controller: _amount,
-              hint: '0.00',
-              prefixText: 'Le ',
-              allowDecimal: true,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              onChanged: (_) => setState(() {}),
-              validator: (v) {
-                final a = parseAmount(v ?? '');
-                if (a < 5) return 'Minimum is Le 5';
-                if (a > kAccountBalance) return 'Insufficient balance';
-                return null;
-              },
-            ),
-            const SizedBox(height: 8),
-            AmountChips(
-              amounts: const [100, 500, 1000, 2000],
-              onPick: (a) => setState(() => _amount.text = a.toStringAsFixed(0)),
-            ),
-            const SizedBox(height: 14),
-            Text(balanceLine(), style: const TextStyle(fontSize: 13, color: TpColors.muted)),
-          ],
-        ),
-      ),
+      child: _loading
+          ? const Center(child: Padding(padding: EdgeInsets.all(32), child: CircularProgressIndicator()))
+          : _error != null
+              ? ErrorRetry(message: _error!, onRetry: _load)
+              : ListenableBuilder(
+                  listenable: appState,
+                  builder: (context, _) => Form(
+                    key: _form,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        TpField(
+                          label: 'Amount to add',
+                          controller: _amount,
+                          hint: '0.00',
+                          prefixText: 'Le ',
+                          allowDecimal: true,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          onChanged: (_) => setState(() {}),
+                          validator: (v) {
+                            final a = parseAmount(v ?? '');
+                            if (a < 5) return 'Minimum is Le 5';
+                            if (a > appState.balance) return 'Insufficient balance';
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 8),
+                        AmountChips(
+                          amounts: const [100, 500, 1000, 2000],
+                          onPick: (a) => setState(() => _amount.text = a.toStringAsFixed(0)),
+                        ),
+                        const SizedBox(height: 14),
+                        Text(balanceLine(), style: const TextStyle(fontSize: 13, color: TpColors.muted)),
+                      ],
+                    ),
+                  ),
+                ),
     );
   }
 }

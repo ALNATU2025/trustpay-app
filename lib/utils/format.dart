@@ -37,3 +37,32 @@ String formatShortDate(DateTime d) => '${d.day} ${_monthsShort[d.month - 1]}';
 /// Reads an amount typed by the user, ignoring commas and the Le sign.
 double parseAmount(String text) =>
     double.tryParse(text.replaceAll(',', '').replaceAll('Le', '').trim()) ?? 0;
+
+/// `12:50`
+String formatTime(DateTime d) => '${two(d.hour)}:${two(d.minute)}';
+
+/// `1,234` for whole numbers such as user counts.
+String formatInt(num value) => formatLeone(value, decimals: 0).replaceFirst(kCurrencySymbol, '');
+
+/// Parses an ISO 8601 string from the API into local time, or null.
+DateTime? tryParseDate(Object? value) {
+  if (value is! String || value.isEmpty) return null;
+  return DateTime.tryParse(value)?.toLocal();
+}
+
+/// Like [tryParseDate] but falls back to now.
+DateTime parseDate(Object? value) => tryParseDate(value) ?? DateTime.now();
+
+/// `11 Oct, 12:50`
+String formatShortDateTime(DateTime d) => '${formatShortDate(d)}, ${formatTime(d)}';
+
+/// Digits only, for comparing phone numbers typed in different formats.
+String digitsOf(String text) => text.replaceAll(RegExp(r'\D'), '');
+
+/// True when two phone numbers match on their last 8 digits.
+bool samePhone(String a, String b) {
+  final x = digitsOf(a);
+  final y = digitsOf(b);
+  if (x.length < 8 || y.length < 8) return false;
+  return x.substring(x.length - 8) == y.substring(y.length - 8);
+}

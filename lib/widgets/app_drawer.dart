@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../data/sample_data.dart';
+import '../services/app_state.dart';
 import '../theme/app_theme.dart';
 import 'menu_widgets.dart';
 
@@ -52,16 +52,18 @@ class AppDrawer extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Avatar(name: kAccountName, size: 52, light: true),
+                  Avatar(name: appState.me.fullName, size: 52, light: true),
                   const SizedBox(height: 12),
-                  const Text(
-                    kAccountName,
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white),
+                  Text(
+                    appState.me.fullName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white),
                   ),
                   const SizedBox(height: 2),
-                  const Text(
-                    'TrustPay · $kAccountNumber',
-                    style: TextStyle(fontSize: 13, color: Colors.white70),
+                  Text(
+                    'TrustPay · ${appState.me.accountNumber}',
+                    style: const TextStyle(fontSize: 13, color: Colors.white70),
                   ),
                 ],
               ),
@@ -76,7 +78,7 @@ class AppDrawer extends StatelessWidget {
                   item(Icons.receipt_long_outlined, 'Transactions', DrawerDest.transactions),
                   item(Icons.desktop_windows_outlined, 'POS', DrawerDest.pos, tab: 2),
                   item(Icons.headset_mic_outlined, 'Help & support', DrawerDest.support),
-                  if (kIsAdmin)
+                  if (appState.isAdmin)
                     item(Icons.admin_panel_settings_outlined, 'Admin console', DrawerDest.admin),
                 ],
               ),

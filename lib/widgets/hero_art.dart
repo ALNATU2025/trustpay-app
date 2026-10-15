@@ -2,7 +2,6 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import '../data/sample_data.dart';
 import '../theme/app_theme.dart';
 import '../utils/format.dart';
 import 'premium.dart';
@@ -235,7 +234,7 @@ class PhoneScene extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 10),
-                        const Text('Hello, Aminata', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: TpColors.navy)),
+                        const Text('Hello', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800, color: TpColors.navy)),
                         const SizedBox(height: 8),
                         Container(
                           width: double.infinity,
@@ -249,7 +248,7 @@ class PhoneScene extends StatelessWidget {
                               FittedBox(
                                 fit: BoxFit.scaleDown,
                                 child: Text(
-                                  formatLeone(kAccountBalance),
+                                  'Le 0.00',
                                   style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.white),
                                 ),
                               ),
@@ -301,7 +300,7 @@ class PhoneScene extends StatelessWidget {
               child: _Chip(
                 icon: Icons.south_west,
                 title: 'Money received',
-                subtitle: '+${formatLeone(1250, decimals: 0)} · Mohamed Sesay',
+                subtitle: '+${formatLeone(1250, decimals: 0)} · Payment received',
               ),
             ),
           ),

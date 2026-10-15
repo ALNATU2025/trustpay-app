@@ -1,18 +1,26 @@
 import 'package:flutter/material.dart';
 
 import '../screens/account/account_screens.dart';
+import '../services/app_state.dart';
 import '../theme/app_theme.dart';
 import '../utils/nav.dart';
 import 'common.dart';
 import 'motion.dart';
 
-/// Menu button, logo, "PERSONAL ACCOUNT / Hello, Aminata" and the notification bell.
+/// Menu button, logo, "PERSONAL ACCOUNT / Hello, <first name>" and the notification bell.
 /// Must sit inside the Home shell so the menu button can open its drawer.
 class AccountHeader extends StatelessWidget {
   const AccountHeader({super.key});
 
   @override
   Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: appState,
+      builder: (context, _) => _row(context),
+    );
+  }
+
+  Widget _row(BuildContext context) {
     return Row(
       children: [
         _RoundButton(
@@ -35,7 +43,7 @@ class AccountHeader extends StatelessWidget {
               ),
               const SizedBox(height: 2),
               Text(
-                '${_greeting()}, Aminata',
+                '${_greeting()}, ${appState.user?.firstName ?? ''}'.trim(),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
@@ -50,21 +58,6 @@ class AccountHeader extends StatelessWidget {
               icon: Icons.notifications_none,
               tooltip: 'Notifications',
               onTap: () => openScreen(context, const NotificationsScreen()),
-            ),
-            Positioned(
-              right: 10,
-              top: 10,
-              child: IgnorePointer(
-                child: Container(
-                  width: 9,
-                  height: 9,
-                  decoration: BoxDecoration(
-                    color: TpColors.danger,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 1.5),
-                  ),
-                ),
-              ),
             ),
           ],
         ),

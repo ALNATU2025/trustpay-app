@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../data/sample_data.dart';
+import '../../models/models.dart';
+import '../../services/app_state.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/nav.dart';
 import '../../utils/session.dart';
 import '../../widgets/account_header.dart';
-import '../../widgets/common.dart';
 import '../../widgets/menu_widgets.dart';
 import '../../widgets/motion.dart';
 import '../../widgets/premium.dart';
@@ -24,6 +24,13 @@ class ProfileTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: appState,
+      builder: (context, _) => _buildList(context),
+    );
+  }
+
+  Widget _buildList(BuildContext context) {
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
       children: [
@@ -115,7 +122,7 @@ class ProfileTab extends StatelessWidget {
             ],
           ),
         ),
-        if (kIsAdmin) ...[
+        if (appState.me.isStaff) ...[
           const SizedBox(height: 20),
           FadeSlideIn(
             delay: const Duration(milliseconds: 380),
@@ -125,7 +132,7 @@ class ProfileTab extends StatelessWidget {
                 MenuTile(
                   icon: Icons.admin_panel_settings_outlined,
                   title: 'Admin console',
-                tone: TpTone.purple,
+                  tone: TpTone.purple,
                   subtitle: 'Users, approvals, volume',
                   onTap: () => openScreen(context, const AdminDashboardScreen()),
                 ),
@@ -155,16 +162,6 @@ class ProfileTab extends StatelessWidget {
             ),
           ),
         ),
-        if (kShowIllustrativeNote)
-          const Padding(
-            padding: EdgeInsets.only(top: 16),
-            child: Center(
-              child: Text(
-                'Illustrative account · TrustPay 1.0.0',
-                style: TextStyle(fontSize: 12, color: TpColors.muted),
-              ),
-            ),
-          ),
       ],
     );
   }
@@ -175,27 +172,34 @@ class _ProfileCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: appState,
+      builder: (context, _) => _card(context, appState.me),
+    );
+  }
+
+  Widget _card(BuildContext context, User me) {
     return PremiumPanel(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Avatar(name: kAccountName, size: 64, light: true),
+              Avatar(name: me.fullName, size: 64, light: true),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      kAccountName,
+                      me.fullName,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Colors.white),
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      kEmail,
+                      me.email,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(fontSize: 13, color: Colors.white70),
@@ -213,12 +217,12 @@ class _ProfileCard extends StatelessWidget {
               color: Colors.white.withOpacity(0.16),
               borderRadius: BorderRadius.circular(20),
             ),
-            child: const Row(
+            child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.verified, size: 16, color: Colors.white),
-                SizedBox(width: 6),
-                Text(kTier, style: TextStyle(fontSize: 12, color: Colors.white)),
+                const Icon(Icons.verified, size: 16, color: Colors.white),
+                const SizedBox(width: 6),
+                Text(me.tier, style: const TextStyle(fontSize: 12, color: Colors.white)),
               ],
             ),
           ),
@@ -231,14 +235,14 @@ class _ProfileCard extends StatelessWidget {
             ),
             child: Row(
               children: [
-                const Expanded(
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Account number', style: TextStyle(fontSize: 12, color: TpColors.muted)),
+                      const Text('Account number', style: TextStyle(fontSize: 12, color: TpColors.muted)),
                       Text(
-                        kAccountNumber,
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, letterSpacing: 1),
+                        me.accountNumber,
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, letterSpacing: 1),
                       ),
                     ],
                   ),
@@ -247,7 +251,7 @@ class _ProfileCard extends StatelessWidget {
                   tooltip: 'Copy account number',
                   icon: const Icon(Icons.copy_rounded, color: TpColors.primary, size: 20),
                   onPressed: () {
-                    Clipboard.setData(const ClipboardData(text: kAccountNumber));
+                    Clipboard.setData(ClipboardData(text: me.accountNumber));
                     HapticFeedback.selectionClick();
                     showMessage(context, 'Account number copied');
                   },

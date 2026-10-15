@@ -15,6 +15,21 @@ flutter pub get
 flutter run
 ```
 
+## Backend (real data, no mock data)
+
+The app talks to the Node.js + MongoDB API in
+[ALNATU2025/trustpay-backend](https://github.com/ALNATU2025/trustpay-backend) (hosted on Render).
+Point the app at your service when you run or build it:
+
+```bash
+flutter run --dart-define=API_BASE_URL=https://<your-service>.onrender.com/api
+```
+
+The default is `https://trustpay-backend.onrender.com/api`. Balances, transactions, cards,
+POS, support and admin screens all come from the server. Render's free tier sleeps, so the
+first request after a pause can take about a minute (the app wakes it on start).
+On a sandbox server the one-time codes are shown on screen because no SMS provider is connected.
+
 ## Flow
 
 `/` splash → `/intro` tagline → `/onboarding` (3 pages) → `/welcome` →

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../data/sample_data.dart';
+import '../../services/app_state.dart';
+import '../../services/trustpay_api.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
 import '../../utils/nav.dart';
@@ -8,12 +9,6 @@ import '../../widgets/common.dart';
 import '../../widgets/flow_widgets.dart';
 import '../../widgets/step_scaffold.dart';
 import 'generic_flow.dart';
-
-const _states = ['Freetown', 'Western Area Rural', 'Bo', 'Makeni', 'Kenema', 'Koidu', 'Port Loko', 'Kambia'];
-
-/// Sample fees. Replace with the amounts from your card issuer.
-const double _cardFee = 75;
-const double _homeDeliveryFee = 50;
 
 /// Order a physical debit card: delivery details, review, PIN, confirmation.
 class OrderPhysicalCardScreen extends StatefulWidget {
@@ -25,29 +20,37 @@ class OrderPhysicalCardScreen extends StatefulWidget {
 
 class _OrderPhysicalCardScreenState extends State<OrderPhysicalCardScreen> {
   final _form = GlobalKey<FormState>();
-  final _phone = TextEditingController(text: kPhone);
+  final _name = TextEditingController(text: appState.me.fullName.toUpperCase());
+  final _phone = TextEditingController(text: appState.me.phone);
   final _address = TextEditingController();
   final _city = TextEditingController();
-  String _state = _states.first;
-  bool _home = true;
+  final _stateText = TextEditingController();
+  late String _state = appState.cat.districts.isEmpty ? '' : appState.cat.districts.first;
 
   @override
   void dispose() {
+    _name.dispose();
     _phone.dispose();
     _address.dispose();
     _city.dispose();
+    _stateText.dispose();
     super.dispose();
   }
-
-  double get _delivery => _home ? _homeDeliveryFee : 0;
 
   String? _required(String? v) => (v == null || v.trim().isEmpty) ? 'Required' : null;
 
   void _review() {
     if (!_form.currentState!.validate()) return;
-    final total = _cardFee + _delivery;
-    final where = _home ? '${_address.text.trim()}, ${_city.text.trim()}, $_state' : 'Pick up at a TrustPay branch ($_state)';
-    final method = _home ? 'Home delivery' : 'Branch pickup';
+    final fee = appState.cat.fees.physicalCard;
+    if (fee > appState.balance) {
+      showMessage(context, 'Insufficient balance for the card fee.');
+      return;
+    }
+    final name = _name.text.trim();
+    final phone = _phone.text.trim();
+    final address = _address.text.trim();
+    final city = _city.text.trim();
+    final state = appState.cat.districts.isEmpty ? _stateText.text.trim() : _state;
 
     openScreen(
       context,
@@ -55,37 +58,54 @@ class _OrderPhysicalCardScreenState extends State<OrderPhysicalCardScreen> {
         eyebrow: 'CARDS · PHYSICAL CARD',
         counter: '02 / 03',
         title: 'Confirm card order',
-        bannerLabel: 'Card ${formatLeone(_cardFee, decimals: 0)} + delivery ${formatLeone(_delivery, decimals: 0)}',
-        total: total,
-        referenceCode: 'PCD',
+        bannerLabel: 'Physical card fee',
+        total: fee,
         payLabel: 'Order for',
         notice: 'Your card arrives inactive. You will activate it with your PIN.',
         rows: [
-          ('Name on card', kAccountName.toUpperCase()),
-          ('Method', method),
-          ('Delivery to', where),
-          ('Contact', _phone.text.trim()),
-          ('Balance after', formatLeone(kAccountBalance - total)),
+          ('Name on card', name),
+          ('Delivery to', '$address, $city, $state'),
+          ('Contact', phone),
+          ('Balance after', formatLeone(appState.balance - fee)),
         ],
-        successBuilder: (reference) => PaySuccessScreen(
-          eyebrow: 'CARDS · PHYSICAL CARD',
-          counter: '03 / 03',
-          headline: 'Card ordered',
-          detail: _home ? 'Expected in 3 to 5 working days' : 'We will text you when it is ready to collect',
-          extra: const _PhysicalCardArt(),
-          notice: 'Track your order with the reference below.',
-          rows: [
-            ('Method', method),
-            ('Total paid', formatLeone(total)),
-            ('Reference', reference),
-          ],
+        onPay: (pin, key) => api.orderPhysicalCard(
+          name: name,
+          phone: phone,
+          address: address,
+          city: city,
+          state: state,
+          pin: pin,
+          idempotencyKey: key,
         ),
+        successBuilder: (result) {
+          final txn = result.transaction;
+          final pending = isPending(txn);
+          final reference = _requestReference(result.request) ?? txn.reference;
+          final status = result.card?.status ?? '';
+          return PaySuccessScreen(
+            eyebrow: 'CARDS · PHYSICAL CARD',
+            counter: '03 / 03',
+            headline: pending ? 'Card order is being processed' : 'Card ordered',
+            detail: 'We will contact you when it ships.',
+            extra: _PhysicalCardArt(name: name),
+            notice: 'Track your order with the reference below.',
+            rows: [
+              ('Name on card', name),
+              ('Delivery to', '$address, $city, $state'),
+              if (status.isNotEmpty) ('Card status', status),
+              ('Total paid', formatLeone(fee)),
+              if (reference.isNotEmpty) ('Reference', reference),
+            ],
+          );
+        },
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final fee = appState.cat.fees.physicalCard;
+    final districts = appState.cat.districts;
     return StepScaffold(
       eyebrow: 'CARDS · PHYSICAL CARD',
       counter: '01 / 03',
@@ -102,28 +122,26 @@ class _OrderPhysicalCardScreenState extends State<OrderPhysicalCardScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const _PhysicalCardArt(),
+            ValueListenableBuilder<TextEditingValue>(
+              valueListenable: _name,
+              builder: (context, value, _) => _PhysicalCardArt(name: value.text.trim()),
+            ),
             const SizedBox(height: 18),
-            SegmentedTabs(
-              labels: const ['Home delivery', 'Branch pickup'],
-              index: _home ? 0 : 1,
-              onChanged: (i) => setState(() => _home = i == 0),
-            ),
+            TpField(label: 'Name on card', controller: _name, validator: _required),
             const SizedBox(height: 16),
-            const Text('District or city', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 8),
-            DropdownButtonFormField<String>(
-              value: _state,
-              items: [for (final s in _states) DropdownMenuItem(value: s, child: Text(s))],
-              onChanged: (v) => setState(() => _state = v ?? _state),
-              decoration: tpDecoration(),
-            ),
-            if (_home) ...[
-              const SizedBox(height: 16),
-              TpField(label: 'Street address', controller: _address, hint: '12 Wilberforce Street', validator: _required),
-              const SizedBox(height: 16),
-              TpField(label: 'City / town', controller: _city, hint: 'Freetown', validator: _required),
-            ],
+            if (districts.isEmpty)
+              TpField(label: 'District or state', controller: _stateText, validator: _required)
+            else
+              TpDropdown(
+                label: 'District or state',
+                value: _state,
+                items: districts,
+                onChanged: (v) => setState(() => _state = v),
+              ),
+            const SizedBox(height: 16),
+            TpField(label: 'Street address', controller: _address, hint: 'House number and street', validator: _required),
+            const SizedBox(height: 16),
+            TpField(label: 'City / town', controller: _city, validator: _required),
             const SizedBox(height: 16),
             TpField(
               label: 'Phone for the courier',
@@ -133,7 +151,7 @@ class _OrderPhysicalCardScreenState extends State<OrderPhysicalCardScreen> {
             ),
             const SizedBox(height: 14),
             Text(
-              'Card ${formatLeone(_cardFee)} · Delivery ${formatLeone(_delivery)} · Total ${formatLeone(_cardFee + _delivery)}',
+              'Card fee ${formatLeone(fee)} · ${balanceLine()}',
               style: const TextStyle(fontSize: 13, color: TpColors.muted),
             ),
           ],
@@ -143,9 +161,17 @@ class _OrderPhysicalCardScreenState extends State<OrderPhysicalCardScreen> {
   }
 }
 
+/// Request reference from the order response, if the server sent one.
+String? _requestReference(Map<String, dynamic> request) {
+  final ref = request['reference'];
+  return ref == null || '$ref'.isEmpty ? null : '$ref';
+}
+
 /// A drawn debit card. It carries no card scheme logo.
 class _PhysicalCardArt extends StatelessWidget {
-  const _PhysicalCardArt();
+  const _PhysicalCardArt({required this.name});
+
+  final String name;
 
   @override
   Widget build(BuildContext context) {
@@ -186,7 +212,7 @@ class _PhysicalCardArt extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             Text(
-              kAccountName.toUpperCase(),
+              name.toUpperCase(),
               style: const TextStyle(fontSize: 13, letterSpacing: 1, color: Colors.white70),
             ),
           ],

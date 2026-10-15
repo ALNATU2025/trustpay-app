@@ -6,8 +6,10 @@ import '../../utils/format.dart';
 import '../../utils/nav.dart';
 import '../../widgets/flow_widgets.dart';
 import '../../widgets/step_scaffold.dart';
+import '../support/support_screen.dart';
+import 'generic_flow.dart';
 
-/// Generic transaction receipt. Build the [ReceiptData] for each kind of payment.
+/// Transaction receipt, shown from the server's [ReceiptData].
 class ReceiptScreen extends StatelessWidget {
   const ReceiptScreen({super.key, required this.data});
 
@@ -21,9 +23,8 @@ class ReceiptScreen extends StatelessWidget {
       subtitle: data.statusLine,
       headerLabel: 'Done',
       onHeaderAction: () => goHome(context),
-      primaryLabel: 'Download receipt',
-      // TODO: generate a PDF or image of the receipt.
-      onPrimary: () => showMessage(context, 'Downloading is not connected yet.'),
+      primaryLabel: 'Copy receipt',
+      onPrimary: () => copyText(context, data.toPlainText(), 'Receipt copied.'),
       secondaryLabel: 'Back to home',
       onSecondary: () => goHome(context),
       child: Column(
@@ -38,15 +39,9 @@ class ReceiptScreen extends StatelessWidget {
           const SizedBox(height: 12),
           DetailsCard(rows: data.rows),
           const SizedBox(height: 12),
-          TpWhiteButton(
-            label: 'Share receipt',
-            icon: Icons.share_outlined,
-            onPressed: () => showMessage(context, 'Sharing is not connected yet.'),
-          ),
-          const SizedBox(height: 12),
           Center(
             child: TextButton(
-              onPressed: () => showMessage(context, 'Reporting is not connected yet.'),
+              onPressed: () => openScreen(context, const SupportScreen()),
               child: const Text(
                 'Need help with this transaction? Report an issue',
                 style: TextStyle(fontSize: 14),

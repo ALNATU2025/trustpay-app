@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../services/app_state.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
 import '../widgets/motion.dart';
@@ -15,20 +16,19 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> {
-  Timer? _timer;
-
   @override
   void initState() {
     super.initState();
-    _timer = Timer(const Duration(seconds: 2), () {
-      if (mounted) Navigator.pushReplacementNamed(context, '/intro');
-    });
+    _start();
   }
 
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
+  /// Shows the logo for at least two seconds while the saved session is checked.
+  Future<void> _start() async {
+    final minimum = Future<void>.delayed(const Duration(seconds: 2));
+    final target = await appState.bootstrap();
+    await minimum;
+    if (!mounted) return;
+    Navigator.pushReplacementNamed(context, target.route, arguments: target.arguments);
   }
 
   @override

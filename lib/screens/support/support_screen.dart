@@ -3,9 +3,14 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../data/sample_data.dart';
+import '../../models/models.dart';
+import '../../services/api.dart';
+import '../../services/app_state.dart';
+import '../../services/trustpay_api.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/format.dart';
 import '../../utils/nav.dart';
+import '../../widgets/api_builder.dart';
 import '../../widgets/common.dart';
 import '../../widgets/menu_widgets.dart';
 import '../../widgets/motion.dart';
@@ -17,22 +22,24 @@ class _Faq {
   final String answer;
 }
 
-const _faqs = [
-  _Faq('How do I fund my account?',
-      'Go to Home, tap Add money and pick a method. Bank transfers to your TrustPay account number arrive in a few minutes.'),
-  _Faq('A transfer is still pending. What now?',
-      'Pending transfers usually clear within 10 minutes. If it is still pending after that, open the receipt and tap Report a problem with the reference.'),
-  _Faq('How do I get a POS terminal?',
-      'Open the POS tab, choose Request a terminal and follow the steps. We will tell you when it is approved.'),
-  _Faq('I forgot my password or PIN.',
-      'On the login screen tap Forgot password. To reset your transaction PIN, go to Account, Security & PIN.'),
-  _Faq('What are my transaction limits?',
-      'Limits depend on your tier. You are on $kTier. Contact support to ask for a higher limit.'),
-  _Faq('Is my money safe?',
-      'We never ask for your password, PIN or verification code. If you shared one by mistake, change it right away and contact us.'),
-];
+List<_Faq> _buildFaqs() => [
+      const _Faq('How do I fund my account?',
+          'Go to Home, tap Add money and pick a method. Bank transfers to your TrustPay account number arrive in a few minutes.'),
+      const _Faq('A transfer is still pending. What now?',
+          'Pending transfers usually clear within 10 minutes. If it is still pending after that, open the receipt and tap Report a problem with the reference.'),
+      const _Faq('How do I get a POS terminal?',
+          'Open the POS tab, choose Request a terminal and follow the steps. We will tell you when it is approved.'),
+      const _Faq('I forgot my password or PIN.',
+          'On the login screen tap Forgot password. To reset your transaction PIN, go to Account, Security & PIN.'),
+      _Faq('What are my transaction limits?',
+          'Limits depend on your tier. You are on ${appState.me.tier}. Contact support to ask for a higher limit.'),
+      const _Faq('Is my money safe?',
+          'We never ask for your password, PIN or verification code. If you shared one by mistake, change it right away and contact us.'),
+    ];
 
-/// Help centre: contact options, FAQ search and a problem report form.
+String _capitalize(String s) => s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';
+
+/// Help centre: contact options, FAQ search, requests and a problem report form.
 class SupportScreen extends StatefulWidget {
   const SupportScreen({super.key});
 
@@ -50,6 +57,10 @@ class _SupportScreenState extends State<SupportScreen> {
   }
 
   void _showContact(String title, String value, String note) {
+    if (value.isEmpty) {
+      showMessage(context, 'This contact detail is not available right now.');
+      return;
+    }
     showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -61,8 +72,10 @@ class _SupportScreenState extends State<SupportScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 8),
-            Text(note, style: const TextStyle(color: TpColors.muted, height: 1.4)),
+            if (note.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(note, style: const TextStyle(color: TpColors.muted, height: 1.4)),
+            ],
           ],
         ),
         actions: [
@@ -89,14 +102,15 @@ class _SupportScreenState extends State<SupportScreen> {
       ),
       builder: (_) => const _ReportSheet(),
     );
-    if (ref != null && mounted) showMessage(context, 'Request $ref sent. We will reply soon.');
+    if (ref != null && mounted) showMessage(context, 'Request $ref sent. You can follow it under My requests.');
   }
 
   @override
   Widget build(BuildContext context) {
+    final support = appState.cat.support;
     final q = _query.trim().toLowerCase();
     final faqs = [
-      for (final f in _faqs)
+      for (final f in _buildFaqs())
         if (q.isEmpty || f.question.toLowerCase().contains(q) || f.answer.toLowerCase().contains(q)) f,
     ];
 
@@ -162,7 +176,11 @@ class _SupportScreenState extends State<SupportScreen> {
                 child: _ContactTile(
                   icon: Icons.call_outlined,
                   label: 'Call us',
-                  onTap: () => _showContact('Call us', kSupportPhone, 'Lines are open every day, 8am to 8pm.'),
+                  onTap: () => _showContact(
+                    'Call us',
+                    support.phone,
+                    support.hours.isNotEmpty ? 'Open ${support.hours}.' : '',
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
@@ -170,7 +188,7 @@ class _SupportScreenState extends State<SupportScreen> {
                 child: _ContactTile(
                   icon: Icons.mail_outline,
                   label: 'Email',
-                  onTap: () => _showContact('Email us', kSupportEmail, 'We reply within one working day.'),
+                  onTap: () => _showContact('Email us', support.email, ''),
                 ),
               ),
             ],
@@ -213,14 +231,11 @@ class _SupportScreenState extends State<SupportScreen> {
             ),
           const SizedBox(height: 22),
           PrimaryButton(label: 'Send us a message', trailingIcon: Icons.send_rounded, onPressed: _report),
-          const SizedBox(height: 8),
-          if (kShowIllustrativeNote)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.only(top: 8),
-                child: Text('Contact details are placeholders', style: TextStyle(fontSize: 12, color: TpColors.muted)),
-              ),
-            ),
+          const SizedBox(height: 10),
+          SecondaryButton(
+            label: 'My requests',
+            onPressed: () => openScreen(context, const MyRequestsScreen()),
+          ),
         ],
       ),
     );
@@ -310,6 +325,7 @@ class _FaqRow extends StatelessWidget {
   }
 }
 
+/// "Send us a message": creates a support ticket and returns its reference.
 class _ReportSheet extends StatefulWidget {
   const _ReportSheet();
 
@@ -318,10 +334,13 @@ class _ReportSheet extends StatefulWidget {
 }
 
 class _ReportSheetState extends State<_ReportSheet> {
-  static const _topics = ['Transfer', 'Bill payment', 'Airtime / data', 'Card', 'POS', 'Something else'];
   final _form = GlobalKey<FormState>();
   final _message = TextEditingController();
-  String _topic = _topics.first;
+  late final List<String> _topics =
+      appState.cat.topics.isNotEmpty ? appState.cat.topics : const ['Something else'];
+  late String _topic = _topics.first;
+  bool _sending = false;
+  String? _error;
 
   @override
   void dispose() {
@@ -329,10 +348,29 @@ class _ReportSheetState extends State<_ReportSheet> {
     super.dispose();
   }
 
-  void _send() {
-    if (!_form.currentState!.validate()) return;
-    // TODO: send the message to your support API.
-    Navigator.pop(context, makeReference('SUP'));
+  Future<void> _send() async {
+    if (_sending || !_form.currentState!.validate()) return;
+    setState(() {
+      _sending = true;
+      _error = null;
+    });
+    try {
+      final thread = await api.createTicket(_topic, _message.text.trim());
+      if (!mounted) return;
+      Navigator.pop(context, thread.ticket.reference);
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _sending = false;
+        _error = e.message;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _sending = false;
+        _error = errorMessage(e);
+      });
+    }
   }
 
   @override
@@ -341,81 +379,256 @@ class _ReportSheetState extends State<_ReportSheet> {
       padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + MediaQuery.viewInsetsOf(context).bottom),
       child: Form(
         key: _form,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Send us a message', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 16),
-            const Text('What is it about?', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final t in _topics)
-                  ChoiceChip(
-                    label: Text(t),
-                    selected: _topic == t,
-                    onSelected: (_) => setState(() => _topic = t),
-                    selectedColor: TpColors.tint,
-                    labelStyle: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: _topic == t ? TpColors.primary : TpColors.muted,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Send us a message', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+              const SizedBox(height: 16),
+              const Text('What is it about?', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final t in _topics)
+                    ChoiceChip(
+                      label: Text(t),
+                      selected: _topic == t,
+                      onSelected: _sending ? null : (_) => setState(() => _topic = t),
+                      selectedColor: TpColors.tint,
+                      labelStyle: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: _topic == t ? TpColors.primary : TpColors.muted,
+                      ),
                     ),
-                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              const Text('Tell us what happened', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _message,
+                maxLines: 4,
+                enabled: !_sending,
+                validator: (v) => (v == null || v.trim().length < 10) ? 'Please add a few more details' : null,
+                decoration: tpDecoration(hint: 'Include a reference number if you have one'),
+              ),
+              if (_error != null) ...[
+                const SizedBox(height: 14),
+                InfoBanner(
+                  icon: Icons.error_outline,
+                  background: const Color(0xFFFDECEC),
+                  accent: TpColors.danger,
+                  textColor: TpColors.danger,
+                  text: _error!,
+                ),
               ],
-            ),
-            const SizedBox(height: 16),
-            const Text('Tell us what happened', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 8),
-            TextFormField(
-              controller: _message,
-              maxLines: 4,
-              validator: (v) => (v == null || v.trim().length < 10) ? 'Please add a few more details' : null,
-              decoration: tpDecoration(hint: 'Include a reference number if you have one'),
-            ),
-            const SizedBox(height: 20),
-            PrimaryButton(label: 'Send', onPressed: _send),
-          ],
+              const SizedBox(height: 20),
+              PrimaryButton(label: 'Send', loading: _sending, onPressed: _send),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-class _Msg {
-  const _Msg(this.text, this.mine);
+// ------------------------------------------------------------ my requests
 
-  final String text;
-  final bool mine;
+/// The customer's support tickets.
+class MyRequestsScreen extends StatelessWidget {
+  const MyRequestsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return PlainScaffold(
+      title: 'My requests',
+      child: ApiBuilder<List<Ticket>>(
+        load: api.tickets,
+        builder: (context, tickets, reload) {
+          if (tickets.isEmpty) {
+            return const Padding(
+              padding: EdgeInsets.symmetric(vertical: 60),
+              child: Center(
+                child: Text(
+                  'You have not sent any requests yet.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: TpColors.muted),
+                ),
+              ),
+            );
+          }
+          return MenuGroup(
+            children: [
+              for (final t in tickets)
+                MenuTile(
+                  icon: t.isOpen ? Icons.mark_unread_chat_alt_outlined : Icons.check_circle_outline,
+                  title: t.topic.isNotEmpty ? t.topic : 'Request',
+                  subtitle: [
+                    '${t.reference} · ${_capitalize(t.status)}',
+                    if (t.lastMessage != null) t.lastMessage!,
+                  ].join('\n'),
+                  onTap: () async {
+                    await openScreen(
+                      context,
+                      TicketThreadScreen(ticketId: t.id, title: t.topic.isNotEmpty ? t.topic : 'Request'),
+                    );
+                    await reload();
+                  },
+                ),
+            ],
+          );
+        },
+      ),
+    );
+  }
 }
 
-/// Simple chat. The replies are sample ones; connect it to your support tool.
-class SupportChatScreen extends StatefulWidget {
+/// One support ticket with its messages and a reply box.
+class TicketThreadScreen extends StatelessWidget {
+  const TicketThreadScreen({super.key, required this.ticketId, required this.title});
+
+  final String ticketId;
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return _ConversationScreen(
+      title: title,
+      load: () => api.ticketThread(ticketId),
+      send: (text) => api.sendTicketMessage(ticketId, text),
+    );
+  }
+}
+
+/// Live chat with support. Messages load from the server and new replies appear while the screen
+/// is open.
+class SupportChatScreen extends StatelessWidget {
   const SupportChatScreen({super.key});
 
   @override
-  State<SupportChatScreen> createState() => _SupportChatScreenState();
+  Widget build(BuildContext context) {
+    return _ConversationScreen(
+      title: 'Live chat',
+      load: api.chat,
+      send: api.sendChat,
+    );
+  }
 }
 
-class _SupportChatScreenState extends State<SupportChatScreen> {
+enum _SendState { sending, sent, failed }
+
+class _LocalMessage {
+  _LocalMessage(this.localId, this.text) : at = DateTime.now();
+
+  final int localId;
+  final String text;
+  final DateTime at;
+  _SendState state = _SendState.sending;
+
+  /// Server id once the message was accepted.
+  String? id;
+}
+
+/// Shared by the live chat and ticket threads: loads the conversation, sends with an optimistic
+/// message (with a sending / failed state and retry) and polls for replies.
+class _ConversationScreen extends StatefulWidget {
+  const _ConversationScreen({required this.title, required this.load, required this.send});
+
+  final String title;
+  final Future<TicketThread> Function() load;
+  final Future<ChatMessage> Function(String text) send;
+
+  @override
+  State<_ConversationScreen> createState() => _ConversationScreenState();
+}
+
+class _ConversationScreenState extends State<_ConversationScreen> {
+  static const _pollEvery = Duration(seconds: 6);
+
   final _controller = TextEditingController();
   final _scroll = ScrollController();
-  final _messages = <_Msg>[
-    const _Msg('Hi Aminata, I am the TrustPay assistant. How can I help today?', false),
-  ];
-  Timer? _reply;
+  Timer? _timer;
+
+  TicketThread? _thread;
+  Object? _loadError;
+  bool _loading = true;
+  bool _refreshing = false;
+  int _nextLocalId = 0;
+  int _shownCount = 0;
+  final _local = <_LocalMessage>[];
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+    _timer = Timer.periodic(_pollEvery, (_) => _refresh());
+  }
 
   @override
   void dispose() {
-    _reply?.cancel();
+    _timer?.cancel();
     _controller.dispose();
     _scroll.dispose();
     super.dispose();
   }
 
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _loadError = null;
+    });
+    try {
+      final thread = await widget.load();
+      if (!mounted) return;
+      setState(() {
+        _thread = thread;
+        _loading = false;
+      });
+      _dropConfirmed();
+      _toEnd();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loadError = e;
+        _loading = false;
+      });
+    }
+  }
+
+  /// Quiet reload for the poll timer. Errors are ignored: the next tick tries again.
+  Future<void> _refresh() async {
+    if (_refreshing || _loading || !mounted) return;
+    _refreshing = true;
+    try {
+      final thread = await widget.load();
+      if (!mounted) return;
+      setState(() => _thread = thread);
+      _dropConfirmed();
+      _toEnd();
+    } catch (_) {
+      // Keep what we have.
+    } finally {
+      _refreshing = false;
+    }
+  }
+
+  /// Removes local copies of messages the server list already contains.
+  void _dropConfirmed() {
+    final thread = _thread;
+    if (thread == null) return;
+    final ids = {for (final m in thread.messages) m.id};
+    final before = _local.length;
+    _local.removeWhere((m) => m.state == _SendState.sent && m.id != null && ids.contains(m.id));
+    if (_local.length != before && mounted) setState(() {});
+  }
+
   void _toEnd() {
+    final count = (_thread?.messages.length ?? 0) + _local.length;
+    if (count == _shownCount) return;
+    _shownCount = count;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scroll.hasClients) {
         _scroll.animateTo(
@@ -430,21 +643,108 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
   void _send() {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
-    setState(() => _messages.add(_Msg(text, true)));
+    final m = _LocalMessage(_nextLocalId++, text);
+    setState(() => _local.add(m));
     _controller.clear();
     _toEnd();
-    // TODO: send to your support platform and show real replies.
-    _reply?.cancel();
-    _reply = Timer(const Duration(milliseconds: 900), () {
+    _deliver(m);
+  }
+
+  Future<void> _deliver(_LocalMessage m) async {
+    setState(() => m.state = _SendState.sending);
+    try {
+      final sent = await widget.send(m.text);
       if (!mounted) return;
-      setState(() => _messages.add(const _Msg(
-          'Thanks. An agent will join this chat shortly. Please keep this screen open.', false)));
-      _toEnd();
-    });
+      setState(() {
+        m.id = sent.id;
+        m.state = _SendState.sent;
+      });
+      _dropConfirmed();
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => m.state = _SendState.failed);
+    }
+  }
+
+  Widget _bubble(String text, bool mine, {DateTime? at, _LocalMessage? local}) {
+    final failed = local?.state == _SendState.failed;
+    final sending = local?.state == _SendState.sending;
+    final caption = failed
+        ? 'Not sent · tap to retry'
+        : sending
+            ? 'Sending…'
+            : (at != null ? formatTime(at) : '');
+    return Align(
+      alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
+      child: GestureDetector(
+        onTap: failed ? () => _deliver(local!) : null,
+        child: Container(
+          margin: const EdgeInsets.symmetric(vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.75),
+          decoration: BoxDecoration(
+            color: mine ? (failed ? TpColors.danger : TpColors.primary) : Colors.white,
+            borderRadius: BorderRadius.only(
+              topLeft: const Radius.circular(18),
+              topRight: const Radius.circular(18),
+              bottomLeft: Radius.circular(mine ? 18 : 4),
+              bottomRight: Radius.circular(mine ? 4 : 18),
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                text,
+                style: TextStyle(fontSize: 15, height: 1.35, color: mine ? Colors.white : TpColors.navy),
+              ),
+              if (caption.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text(
+                  caption,
+                  style: TextStyle(fontSize: 11, color: mine ? Colors.white70 : TpColors.muted),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _body() {
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    final thread = _thread;
+    if (thread == null) {
+      return ErrorRetry(message: errorMessage(_loadError ?? ''), onRetry: _load);
+    }
+    final server = thread.messages;
+    final total = server.length + _local.length;
+    return ListView.builder(
+      controller: _scroll,
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+      itemCount: total,
+      itemBuilder: (context, i) {
+        if (i < server.length) {
+          final m = server[i];
+          return _bubble(m.text, m.fromUser, at: m.createdAt);
+        }
+        final l = _local[i - server.length];
+        return _bubble(l.text, true, at: l.at, local: l);
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final thread = _thread;
+    final closed = thread != null && !thread.ticket.isOpen;
+    final subtitle = thread == null || thread.ticket.reference.isEmpty
+        ? 'TrustPay support'
+        : '${thread.ticket.reference} · ${_capitalize(thread.ticket.status)}';
     return Scaffold(
       backgroundColor: TpColors.background,
       body: SafeArea(
@@ -456,89 +756,66 @@ class _SupportChatScreenState extends State<SupportChatScreen> {
                 children: [
                   const RoundBackButton(),
                   const SizedBox(width: 14),
-                  const Expanded(
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Live chat', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
-                        Text('TrustPay support', style: TextStyle(fontSize: 13, color: TpColors.green)),
+                        Text(
+                          widget.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                        ),
+                        Text(subtitle, style: const TextStyle(fontSize: 13, color: TpColors.green)),
                       ],
                     ),
                   ),
                 ],
               ),
             ),
-            Expanded(
-              child: ListView.builder(
-                controller: _scroll,
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
-                itemCount: _messages.length,
-                itemBuilder: (context, i) {
-                  final m = _messages[i];
-                  return FadeSlideIn(
-                    key: ValueKey(i),
-                    offset: 10,
-                    duration: const Duration(milliseconds: 280),
-                    child: Align(
-                      alignment: m.mine ? Alignment.centerRight : Alignment.centerLeft,
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(vertical: 4),
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                        constraints: BoxConstraints(maxWidth: MediaQuery.sizeOf(context).width * 0.75),
-                        decoration: BoxDecoration(
-                          color: m.mine ? TpColors.primary : Colors.white,
-                          borderRadius: BorderRadius.only(
-                            topLeft: const Radius.circular(18),
-                            topRight: const Radius.circular(18),
-                            bottomLeft: Radius.circular(m.mine ? 18 : 4),
-                            bottomRight: Radius.circular(m.mine ? 4 : 18),
-                          ),
-                        ),
-                        child: Text(
-                          m.text,
-                          style: TextStyle(
-                            fontSize: 15,
-                            height: 1.35,
-                            color: m.mine ? Colors.white : TpColors.navy,
+            Expanded(child: _body()),
+            if (closed)
+              const Padding(
+                padding: EdgeInsets.fromLTRB(20, 4, 20, 16),
+                child: Text(
+                  'This request is closed. Send us a new message if you still need help.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: TpColors.muted),
+                ),
+              )
+            else
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _controller,
+                        enabled: thread != null,
+                        textInputAction: TextInputAction.send,
+                        onSubmitted: (_) => _send(),
+                        decoration: tpDecoration(hint: 'Type a message'),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    PressScale(
+                      child: Material(
+                        color: TpColors.primary,
+                        shape: const CircleBorder(),
+                        child: InkWell(
+                          customBorder: const CircleBorder(),
+                          onTap: thread == null ? null : _send,
+                          child: const SizedBox(
+                            width: 50,
+                            height: 50,
+                            child: Icon(Icons.send_rounded, color: Colors.white, size: 22),
                           ),
                         ),
                       ),
                     ),
-                  );
-                },
+                  ],
+                ),
               ),
-            ),
-            Padding(
-              padding: EdgeInsets.fromLTRB(20, 4, 20, 12),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _controller,
-                      textInputAction: TextInputAction.send,
-                      onSubmitted: (_) => _send(),
-                      decoration: tpDecoration(hint: 'Type a message'),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  PressScale(
-                    child: Material(
-                      color: TpColors.primary,
-                      shape: const CircleBorder(),
-                      child: InkWell(
-                        customBorder: const CircleBorder(),
-                        onTap: _send,
-                        child: const SizedBox(
-                          width: 50,
-                          height: 50,
-                          child: Icon(Icons.send_rounded, color: Colors.white, size: 22),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
           ],
         ),
       ),

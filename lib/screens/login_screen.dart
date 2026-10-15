@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../services/api.dart';
+import '../services/app_state.dart';
+import '../services/trustpay_api.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
 import '../utils/nav.dart';
@@ -21,6 +24,8 @@ class _LoginScreenState extends State<LoginScreen> {
   final _form = GlobalKey<FormState>();
   final _id = TextEditingController();
   final _password = TextEditingController();
+  bool _busy = false;
+  String? _error;
 
   @override
   void dispose() {
@@ -31,10 +36,31 @@ class _LoginScreenState extends State<LoginScreen> {
 
   String? _required(String? v) => (v == null || v.trim().isEmpty) ? 'Required' : null;
 
-  void _login() {
-    if (_form.currentState!.validate()) {
-      // TODO: authenticate with your API.
-      Navigator.pushNamedAndRemoveUntil(context, '/home', (_) => false);
+  Future<void> _login() async {
+    if (!_form.currentState!.validate() || _busy) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final result = await api.login(_id.text.trim(), _password.text);
+      await appState.signIn(result);
+      if (!mounted) return;
+      final next = AppState.routeFor(result.user);
+      if (next.route == '/otp') {
+        // The code was not confirmed yet: send a fresh one.
+        try {
+          appState.devOtp = await api.sendOtp();
+        } on ApiException {
+          // The verification screen has a "Resend code" button.
+        }
+        if (!mounted) return;
+      }
+      Navigator.pushNamedAndRemoveUntil(context, next.route, (_) => false, arguments: next.arguments);
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
   }
 
@@ -42,10 +68,11 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return StepScaffold(
       eyebrow: 'RETURNING USER · LOGIN',
-      title: 'Welcome back, Aminata',
+      title: 'Welcome back',
       subtitle: 'Log in to your TrustPay account securely.',
       primaryLabel: 'Secure login',
-      onPrimary: _login,
+      primaryLoading: _busy,
+      onPrimary: _busy ? null : _login,
       secondaryLabel: 'New to TrustPay? Create account',
       onSecondary: widget.onSwitch ?? () => Navigator.pushNamed(context, '/signup'),
       child: Form(
@@ -56,7 +83,7 @@ class _LoginScreenState extends State<LoginScreen> {
             TpField(
               label: 'Phone number or email',
               controller: _id,
-              hint: 'aminata.kamara@example.com',
+              hint: 'you@example.com or 076 123 456',
               keyboardType: TextInputType.emailAddress,
               validator: _required,
             ),
@@ -78,49 +105,9 @@ class _LoginScreenState extends State<LoginScreen> {
               child: const Text('Forgot password?', style: TextStyle(fontSize: 14)),
             ),
             const SizedBox(height: 8),
+            if (_error != null) ...[ErrorBanner(_error!), const SizedBox(height: 12)],
             const InfoBanner(
               text: 'Your password protects your account. Your transaction PIN protects payments.',
-            ),
-            const SizedBox(height: 16),
-            Material(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(18),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(18),
-                onTap: () {
-                  // TODO: wire up local_auth for Face ID / fingerprint.
-                },
-                child: Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: TpColors.border),
-                  ),
-                  child: const Row(
-                    children: [
-                      IconBox(icon: Icons.face_outlined, size: 44),
-                      SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Use Face ID next time',
-                              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-                            ),
-                            SizedBox(height: 2),
-                            Text(
-                              'Enable after a successful login on this device.',
-                              style: TextStyle(fontSize: 13, color: TpColors.muted),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Icon(Icons.chevron_right, color: TpColors.primary),
-                    ],
-                  ),
-                ),
-              ),
             ),
             const SizedBox(height: 16),
             const Center(

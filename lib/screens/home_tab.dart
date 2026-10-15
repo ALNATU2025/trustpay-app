@@ -2,6 +2,10 @@ import 'dart:ui' show FontFeature;
 
 import 'package:flutter/material.dart';
 
+import '../models/models.dart';
+import '../services/api.dart';
+import '../services/app_state.dart';
+import '../services/trustpay_api.dart';
 import '../theme/app_theme.dart';
 import '../utils/format.dart';
 import '../widgets/account_header.dart';
@@ -10,22 +14,6 @@ import '../widgets/common.dart';
 import '../widgets/motion.dart';
 import '../widgets/premium.dart';
 import 'flows/flows.dart';
-
-class _Txn {
-  const _Txn(this.title, this.meta, this.amount, this.icon);
-
-  final String title;
-  final String meta;
-  final double amount;
-  final IconData icon;
-}
-
-// Sample data from the design. Replace with data from your API.
-const _transactions = [
-  _Txn('From Mohamed Sesay', 'Bank transfer · 10:24', 1250, Icons.south_west),
-  _Txn('EDSA Cash Power', 'Bill payment · 09:18', -625, Icons.flash_on_outlined),
-  _Txn('To Fatmata Conteh', 'Bank transfer · Yesterday', -400, Icons.north_east),
-];
 
 class _Essential {
   const _Essential(this.icon, this.label, this.tone, this.open);
@@ -58,23 +46,141 @@ class HomeTab extends StatefulWidget {
 
 class _HomeTabState extends State<HomeTab> {
   bool _hidden = false;
-  static const _balance = 12450.0;
+  List<Txn>? _recent;
+  Object? _recentError;
+  bool _loadingRecent = true;
+  int _seenVersion = -1;
+
+  @override
+  void initState() {
+    super.initState();
+    appState.addListener(_onState);
+    _loadRecent();
+  }
+
+  @override
+  void dispose() {
+    appState.removeListener(_onState);
+    super.dispose();
+  }
+
+  /// Reloads the recent list after any payment (the version goes up).
+  void _onState() {
+    if (appState.txnVersion != _seenVersion && mounted) _loadRecent();
+  }
+
+  Future<void> _loadRecent() async {
+    _seenVersion = appState.txnVersion;
+    setState(() {
+      _loadingRecent = _recent == null;
+      _recentError = null;
+    });
+    try {
+      final page = await api.transactions(limit: 4);
+      if (!mounted) return;
+      setState(() {
+        _recent = page.items;
+        _loadingRecent = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _recentError = e;
+        _loadingRecent = false;
+      });
+    }
+  }
+
+  Future<void> _refresh() async {
+    await appState.refreshUser();
+    await _loadRecent();
+  }
+
+  IconData _icon(Txn t) => switch (t.kind) {
+        TxnKind.transfer => t.isCredit ? Icons.south_west : Icons.north_east,
+        TxnKind.funding => Icons.south_west,
+        TxnKind.bill => Icons.flash_on_outlined,
+        TxnKind.airtime => Icons.smartphone_outlined,
+        TxnKind.data => Icons.data_usage_outlined,
+        TxnKind.tv => Icons.tv_outlined,
+        TxnKind.internet => Icons.wifi,
+        TxnKind.card => Icons.credit_card_outlined,
+        TxnKind.pos => Icons.point_of_sale_outlined,
+        TxnKind.mobileMoney => Icons.phone_android_outlined,
+        TxnKind.other => Icons.receipt_long_outlined,
+      };
+
+  Widget _recentBody() {
+    if (_loadingRecent) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 24),
+        child: Center(child: CircularProgressIndicator(strokeWidth: 2.5)),
+      );
+    }
+    final items = _recent;
+    if (items == null) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                _recentError == null ? 'Could not load transactions.' : errorMessage(_recentError!),
+                style: const TextStyle(fontSize: 14, color: TpColors.muted),
+              ),
+            ),
+            TextButton(onPressed: _loadRecent, child: const Text('Retry')),
+          ],
+        ),
+      );
+    }
+    if (items.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 16),
+        child: Text(
+          'No transactions yet. Add money or send some to get started.',
+          style: TextStyle(fontSize: 14, height: 1.4, color: TpColors.muted),
+        ),
+      );
+    }
+    return Column(
+      children: [
+        for (var i = 0; i < items.length; i++)
+          _TxnRow(
+            txn: items[i],
+            icon: _icon(items[i]),
+            showDivider: i < items.length - 1,
+            onTap: () {
+              final receipt = items[i].receipt;
+              if (receipt != null) openScreen(context, ReceiptScreen(data: receipt));
+            },
+          ),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
+    return RefreshIndicator(
+      onRefresh: _refresh,
+      child: ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
       children: [
         const FadeSlideIn(child: AccountHeader()),
         const SizedBox(height: 16),
         FadeSlideIn(
           delay: const Duration(milliseconds: 80),
-          child: _BalanceCard(
+          child: ListenableBuilder(
+            listenable: appState,
+            builder: (context, _) => _BalanceCard(
             hidden: _hidden,
-            balance: _balance,
+            balance: appState.balance,
+            accountNumber: appState.user?.accountNumber ?? '',
             onToggle: () => setState(() => _hidden = !_hidden),
             onSend: () => showSendOptions(context),
             onAdd: () => openScreen(context, const AddMoneyScreen()),
+            ),
           ),
         ),
         const SizedBox(height: 20),
@@ -146,17 +252,8 @@ class _HomeTabState extends State<HomeTab> {
                     ),
                   ],
                 ),
-                const Text(
-                  'TODAY · 11 OCTOBER',
-                  style: TextStyle(fontSize: 12, letterSpacing: 0.4, color: TpColors.muted),
-                ),
-                const SizedBox(height: 14),
-                for (var i = 0; i < _transactions.length; i++)
-                  FadeSlideIn(
-                    delay: Duration(milliseconds: 480 + i * 80),
-                    offset: 12,
-                    child: _TxnRow(txn: _transactions[i], showDivider: true),
-                  ),
+                const SizedBox(height: 8),
+                _recentBody(),
               ],
             ),
           ),
@@ -202,17 +299,8 @@ class _HomeTabState extends State<HomeTab> {
             ),
           ),
         ),
-        if (kShowIllustrativeNote)
-          const Padding(
-            padding: EdgeInsets.only(top: 16),
-            child: Center(
-              child: Text(
-                'Illustrative account · All amounts in Leones (SLE)',
-                style: TextStyle(fontSize: 12, color: TpColors.muted),
-              ),
-            ),
-          ),
       ],
+      ),
     );
   }
 }
@@ -221,6 +309,7 @@ class _BalanceCard extends StatelessWidget {
   const _BalanceCard({
     required this.hidden,
     required this.balance,
+    required this.accountNumber,
     required this.onToggle,
     required this.onSend,
     required this.onAdd,
@@ -228,6 +317,7 @@ class _BalanceCard extends StatelessWidget {
 
   final bool hidden;
   final double balance;
+  final String accountNumber;
   final VoidCallback onToggle;
   final VoidCallback onSend;
   final VoidCallback onAdd;
@@ -290,9 +380,9 @@ class _BalanceCard extends StatelessWidget {
               color: Colors.white.withOpacity(0.14),
               borderRadius: BorderRadius.circular(20),
             ),
-            child: const Text(
-              'TrustPay account · 0123454821',
-              style: TextStyle(fontSize: 12, letterSpacing: 0.2, color: Colors.white),
+            child: Text(
+              'TrustPay account · $accountNumber',
+              style: const TextStyle(fontSize: 12, letterSpacing: 0.2, color: Colors.white),
             ),
           ),
           const SizedBox(height: 18),
@@ -400,39 +490,57 @@ class _EssentialTile extends StatelessWidget {
 }
 
 class _TxnRow extends StatelessWidget {
-  const _TxnRow({required this.txn, required this.showDivider});
+  const _TxnRow({required this.txn, required this.icon, required this.showDivider, required this.onTap});
 
-  final _Txn txn;
+  final Txn txn;
+  final IconData icon;
   final bool showDivider;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final credit = txn.amount > 0;
+    final credit = txn.isCredit;
+    final failed = txn.status == 'Failed';
     return Column(
       children: [
-        Row(
-          children: [
-            IconBox(icon: txn.icon, size: 40, tone: credit ? TpTone.green : TpTone.blue),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(txn.title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 2),
-                  Text(txn.meta, style: const TextStyle(fontSize: 13, color: TpColors.muted)),
-                ],
+        InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Row(
+            children: [
+              IconBox(icon: icon, size: 40, tone: credit ? TpTone.green : TpTone.blue),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      txn.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      txn.status == 'Successful' ? txn.meta : '${txn.status} · ${txn.meta}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 13, color: TpColors.muted),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            Text(
-              formatLeone(txn.amount, showSign: true),
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-                color: credit ? TpColors.green : TpColors.navy,
+              const SizedBox(width: 8),
+              Text(
+                formatLeone(txn.signedAmount, showSign: true),
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: failed ? TpColors.muted : (credit ? TpColors.green : TpColors.navy),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         if (showDivider)
           const Padding(

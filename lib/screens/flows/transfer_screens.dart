@@ -1,16 +1,24 @@
 import 'package:flutter/material.dart';
 
-import '../../data/sample_data.dart';
 import '../../models/models.dart';
+import '../../services/api.dart';
+import '../../services/app_state.dart';
+import '../../services/trustpay_api.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/debounce.dart';
 import '../../utils/format.dart';
 import '../../utils/nav.dart';
 import '../../widgets/common.dart';
 import '../../widgets/flow_widgets.dart';
 import '../../widgets/step_scaffold.dart';
+import 'generic_flow.dart';
 import 'receipt_screen.dart';
 
-/// Transfer 1/4: choose bank, account, amount.
+/// `•• 1234` for the last four characters of an account number.
+String _maskTail(String number) =>
+    number.length <= 4 ? number : '•• ${number.substring(number.length - 4)}';
+
+/// Transfer 1/3: choose bank, account, amount.
 class SendBankScreen extends StatefulWidget {
   const SendBankScreen({super.key});
 
@@ -23,35 +31,92 @@ class _SendBankScreenState extends State<SendBankScreen> {
   final _account = TextEditingController();
   final _amount = TextEditingController();
   final _note = TextEditingController();
-  String _bank = kBanks.first;
+  final _debounce = Debouncer();
+  late String _bank;
   String? _verifiedName;
   bool _verifying = false;
+  bool _notFound = false;
+  String? _lookupError;
   bool _saveRecipient = false;
   int _lookupId = 0;
+  List<Recipient> _recipients = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    final banks = appState.cat.banks;
+    _bank = banks.isEmpty ? '' : banks.first;
+    _loadRecipients();
+  }
 
   @override
   void dispose() {
+    _debounce.dispose();
     _account.dispose();
     _amount.dispose();
     _note.dispose();
     super.dispose();
   }
 
+  Future<void> _loadRecipients() async {
+    try {
+      final list = await api.recipients();
+      if (!mounted) return;
+      setState(() => _recipients = list);
+    } catch (_) {
+      // Saved recipients are a convenience; the form works without them.
+    }
+  }
+
+  /// Called when the bank or the account number changes.
+  void _startLookup({bool immediate = false}) {
+    _lookupId++;
+    _debounce.cancel();
+    final ready = _account.text.length == 10 && _bank.isNotEmpty;
+    setState(() {
+      _verifiedName = null;
+      _notFound = false;
+      _lookupError = null;
+      _verifying = ready;
+    });
+    if (!ready) return;
+    if (immediate) {
+      _verify();
+    } else {
+      _debounce.run(_verify);
+    }
+  }
+
   Future<void> _verify() async {
     final number = _account.text;
-    setState(() => _verifiedName = null);
-    if (number.length != 10) {
-      setState(() => _verifying = false);
-      return;
-    }
+    final bank = _bank;
+    if (number.length != 10 || bank.isEmpty) return;
     final id = ++_lookupId;
-    setState(() => _verifying = true);
-    final name = await lookupBankAccount(_bank, number);
-    if (!mounted || id != _lookupId) return;
+    if (!_verifying) setState(() => _verifying = true);
+    try {
+      final name = await api.lookupBankAccount(bank, number);
+      if (!mounted || id != _lookupId) return;
+      final found = (name == null || name.isEmpty) ? null : name;
+      setState(() {
+        _verifiedName = found;
+        _notFound = found == null;
+        _verifying = false;
+      });
+    } on ApiException catch (e) {
+      if (!mounted || id != _lookupId) return;
+      setState(() {
+        _verifying = false;
+        _lookupError = e.message;
+      });
+    }
+  }
+
+  void _pickRecipient(Recipient r) {
     setState(() {
-      _verifiedName = name;
-      _verifying = false;
+      if (appState.cat.banks.contains(r.bank)) _bank = r.bank;
+      _account.text = r.accountNumber;
     });
+    _startLookup(immediate: true);
   }
 
   double get _amountValue => parseAmount(_amount.text);
@@ -60,312 +125,210 @@ class _SendBankScreenState extends State<SendBankScreen> {
     if (!_form.currentState!.validate()) return;
     final name = _verifiedName;
     if (name == null) {
-      showMessage(context, 'We could not verify this account yet.');
+      showMessage(context, 'Verify the account first. We could not confirm this account yet.');
       return;
     }
+    final draft = TransferDraft(
+      bank: _bank,
+      accountNumber: _account.text,
+      accountName: name,
+      amount: _amountValue,
+      fee: appState.cat.fees.transfer,
+      note: _note.text.trim(),
+      saveRecipient: _saveRecipient,
+    );
     openScreen(
       context,
-      CheckTransferScreen(
-        draft: TransferDraft(
-          bank: _bank,
-          accountNumber: _account.text,
-          accountName: name,
-          amount: _amountValue,
-          note: _note.text,
-        ),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final total = _amountValue > 0 ? _amountValue + TransferDraft.fee : 0.0;
-    return StepScaffold(
-      eyebrow: 'TRANSFER · FROM HOME / SERVICES',
-      counter: '01 / 04',
-      title: 'Send to a bank account',
-      subtitle: 'Available balance: ${formatLeone(kAccountBalance)}',
-      headerLabel: 'Cancel',
-      onHeaderAction: () => goHome(context),
-      primaryLabel: 'Review transfer',
-      onPrimary: _review,
-      secondaryLabel: 'Back to home',
-      onSecondary: () => goHome(context),
-      child: Form(
-        key: _form,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            TpDropdown(
-              label: 'Recipient bank',
-              value: _bank,
-              items: kBanks,
-              onChanged: (v) {
-                setState(() => _bank = v);
-                _verify();
-              },
-            ),
-            const SizedBox(height: 16),
-            TpField(
-              label: 'Account number',
-              controller: _account,
-              hint: '10-digit account number',
-              keyboardType: TextInputType.number,
-              digitsOnly: true,
-              maxLength: 10,
-              onChanged: (_) => _verify(),
-              suffix: const Icon(Icons.contacts_outlined, color: TpColors.primary),
-              validator: (v) => (v == null || v.length != 10) ? 'Enter all 10 digits' : null,
-            ),
-            const SizedBox(height: 10),
-            if (_verifiedName != null)
-              InfoBanner(
-                icon: Icons.check_circle_outline,
-                background: TpColors.greenTint,
-                accent: TpColors.green,
-                textColor: TpColors.green,
-                text: 'Account verified · $_verifiedName',
-              )
-            else if (_verifying)
-              const Text(
-                'Verifying account…',
-                style: TextStyle(fontSize: 13, color: TpColors.muted),
-              ),
-            const SizedBox(height: 16),
-            TpField(
-              label: 'Amount',
-              controller: _amount,
-              hint: '0.00',
-              prefixText: 'Le ',
-              allowDecimal: true,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              onChanged: (_) => setState(() {}),
-              validator: (v) {
-                final a = parseAmount(v ?? '');
-                if (a <= 0) return 'Enter an amount';
-                if (a + TransferDraft.fee > kAccountBalance) return 'Insufficient balance';
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-            TpField(label: 'Note · optional', controller: _note, hint: 'What is this for?'),
-            const SizedBox(height: 8),
-            TextButton.icon(
-              onPressed: () => setState(() => _saveRecipient = !_saveRecipient),
-              style: TextButton.styleFrom(
-                padding: EdgeInsets.zero,
-                foregroundColor: TpColors.primary,
-                alignment: Alignment.centerLeft,
-              ),
-              icon: Icon(_saveRecipient ? Icons.star : Icons.star_border, size: 20),
-              label: const Text('Save recipient for next time', style: TextStyle(fontSize: 15)),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Transfer fee: ${formatLeone(TransferDraft.fee)} · Total debit: ${formatLeone(total)}',
-              style: const TextStyle(fontSize: 14, color: TpColors.muted),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Transfer 2/4: review before authorizing.
-class CheckTransferScreen extends StatelessWidget {
-  const CheckTransferScreen({super.key, required this.draft});
-
-  final TransferDraft draft;
-
-  @override
-  Widget build(BuildContext context) {
-    return StepScaffold(
-      eyebrow: 'TRANSFER',
-      counter: '02 / 04',
-      title: 'Check your transfer',
-      subtitle: 'Please confirm the recipient before sending.',
-      headerLabel: 'Cancel',
-      onHeaderAction: () => goHome(context),
-      primaryLabel: 'Continue to authorize',
-      onPrimary: () => openScreen(context, AuthorizeTransferScreen(draft: draft)),
-      secondaryLabel: 'Edit transfer',
-      onSecondary: () => Navigator.maybePop(context),
-      child: Column(
-        children: [
-          AmountBanner(label: 'Total debit', value: formatLeone(draft.total)),
-          const SizedBox(height: 12),
-          DetailsCard(
-            rows: [
-              ('Recipient', draft.accountName),
-              ('Bank / account', '${draft.bank} · ${draft.accountNumber}'),
-              ('Amount', formatLeone(draft.amount)),
-              ('Transfer fee', formatLeone(TransferDraft.fee)),
-              ('Note', draft.note.trim().isEmpty ? '—' : draft.note.trim()),
-              ('From', 'TrustPay · •• ${kAccountNumber.substring(6)}'),
-              ('Balance after', formatLeone(kAccountBalance - draft.total)),
-            ],
-          ),
-          const SizedBox(height: 16),
-          const InfoBanner(
-            text: 'Transfers are usually instant. Confirmed transfers cannot be cancelled.',
-          ),
+      PayConfirmScreen(
+        eyebrow: 'TRANSFER',
+        counter: '02 / 03',
+        title: 'Check and authorize',
+        bannerLabel: 'Total debit',
+        total: draft.total,
+        payLabel: 'Send',
+        notice: 'Transfers are usually instant. Confirmed transfers cannot be cancelled.',
+        rows: [
+          ('Recipient', draft.accountName),
+          ('Bank / account', '${draft.bank} · ${draft.accountNumber}'),
+          ('Amount', formatLeone(draft.amount)),
+          ('Transfer fee', formatLeone(draft.fee)),
+          ('Note', draft.note.isEmpty ? '—' : draft.note),
+          ('From', 'TrustPay · ${_maskTail(appState.me.accountNumber)}'),
+          ('Balance after', formatLeone(appState.balance - draft.total)),
         ],
-      ),
-    );
-  }
-}
-
-/// Transfer 3/4: enter the 4-digit PIN on the on-screen keypad.
-class AuthorizeTransferScreen extends StatefulWidget {
-  const AuthorizeTransferScreen({super.key, required this.draft});
-
-  final TransferDraft draft;
-
-  @override
-  State<AuthorizeTransferScreen> createState() => _AuthorizeTransferScreenState();
-}
-
-class _AuthorizeTransferScreenState extends State<AuthorizeTransferScreen> {
-  String _pin = '';
-
-  void _digit(String d) {
-    if (_pin.length < 4) setState(() => _pin += d);
-  }
-
-  void _delete() {
-    if (_pin.isNotEmpty) setState(() => _pin = _pin.substring(0, _pin.length - 1));
-  }
-
-  void _send() {
-    // TODO: verify the PIN and submit the transfer with your API.
-    replaceScreen(
-      context,
-      TransferCompleteScreen(
-        draft: widget.draft,
-        reference: makeReference('TRF'),
-        paidAt: DateTime.now(),
+        onPay: (pin, key) => api.transferBank(
+          bank: draft.bank,
+          accountNumber: draft.accountNumber,
+          accountName: draft.accountName,
+          amount: draft.amount,
+          note: draft.note,
+          saveRecipient: draft.saveRecipient,
+          pin: pin,
+          idempotencyKey: key,
+        ),
+        successBuilder: (result) => TransferCompleteScreen(draft: draft, result: result),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final d = widget.draft;
-    return StepScaffold(
-      eyebrow: 'TRANSFER',
-      counter: '03 / 04',
-      title: 'Authorize transfer',
-      subtitle: 'Enter your 4-digit transaction PIN.',
-      headerLabel: 'Cancel',
-      onHeaderAction: () => goHome(context),
-      primaryLabel: 'Send ${formatLeone(d.total)}',
-      onPrimary: _pin.length == 4 ? _send : null,
-      secondaryLabel: 'Cancel transfer',
-      onSecondary: () => goHome(context),
-      child: Column(
-        children: [
-          WhiteCard(
+    return ListenableBuilder(
+      listenable: appState,
+      builder: (context, _) {
+        final fee = appState.cat.fees.transfer;
+        final total = _amountValue > 0 ? _amountValue + fee : 0.0;
+        return StepScaffold(
+          eyebrow: 'TRANSFER · FROM HOME / SERVICES',
+          counter: '01 / 03',
+          title: 'Send to a bank account',
+          subtitle: 'Available balance: ${formatLeone(appState.balance)}',
+          headerLabel: 'Cancel',
+          onHeaderAction: () => goHome(context),
+          primaryLabel: 'Review transfer',
+          onPrimary: _review,
+          secondaryLabel: 'Back to home',
+          onSecondary: () => goHome(context),
+          child: Form(
+            key: _form,
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  '${formatLeone(d.amount)} → ${d.accountName}',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                if (_recipients.isNotEmpty) ...[
+                  const Text('Saved recipients', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final r in _recipients)
+                        ActionChip(
+                          label: Text(r.accountName.isEmpty ? r.accountNumber : r.accountName),
+                          tooltip: '${r.bank} · ${r.accountNumber}',
+                          onPressed: () => _pickRecipient(r),
+                          backgroundColor: TpColors.tint,
+                          side: BorderSide.none,
+                          labelStyle: const TextStyle(fontWeight: FontWeight.w700, color: TpColors.primary),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                ],
+                TpDropdown(
+                  label: 'Recipient bank',
+                  value: _bank,
+                  items: appState.cat.banks,
+                  onChanged: (v) {
+                    setState(() => _bank = v);
+                    _startLookup();
+                  },
+                ),
+                const SizedBox(height: 16),
+                TpField(
+                  label: 'Account number',
+                  controller: _account,
+                  hint: '10-digit account number',
+                  keyboardType: TextInputType.number,
+                  digitsOnly: true,
+                  maxLength: 10,
+                  onChanged: (_) => _startLookup(),
+                  suffix: const Icon(Icons.contacts_outlined, color: TpColors.primary),
+                  validator: (v) => (v == null || v.length != 10) ? 'Enter all 10 digits' : null,
+                ),
+                const SizedBox(height: 10),
+                if (_verifiedName != null)
+                  InfoBanner(
+                    icon: Icons.check_circle_outline,
+                    background: TpColors.greenTint,
+                    accent: TpColors.green,
+                    textColor: TpColors.green,
+                    text: 'Account verified · $_verifiedName',
+                  )
+                else if (_verifying)
+                  const Text(
+                    'Verifying account…',
+                    style: TextStyle(fontSize: 13, color: TpColors.muted),
+                  )
+                else if (_notFound)
+                  const Text(
+                    'Account not found. Check the bank and the number.',
+                    style: TextStyle(fontSize: 13, color: TpColors.danger),
+                  )
+                else if (_lookupError != null)
+                  Text(
+                    _lookupError!,
+                    style: const TextStyle(fontSize: 13, color: TpColors.danger),
+                  ),
+                const SizedBox(height: 16),
+                TpField(
+                  label: 'Amount',
+                  controller: _amount,
+                  hint: '0.00',
+                  prefixText: 'Le ',
+                  allowDecimal: true,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  onChanged: (_) => setState(() {}),
+                  validator: (v) {
+                    final a = parseAmount(v ?? '');
+                    if (a <= 0) return 'Enter an amount';
+                    if (a + appState.cat.fees.transfer > appState.balance) return 'Insufficient balance';
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                TpField(label: 'Note · optional', controller: _note, hint: 'What is this for?'),
+                const SizedBox(height: 8),
+                TextButton.icon(
+                  onPressed: () => setState(() => _saveRecipient = !_saveRecipient),
+                  style: TextButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                    foregroundColor: TpColors.primary,
+                    alignment: Alignment.centerLeft,
+                  ),
+                  icon: Icon(_saveRecipient ? Icons.star : Icons.star_border, size: 20),
+                  label: const Text('Save recipient for next time', style: TextStyle(fontSize: 15)),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  '${d.bank} · ${d.maskedAccount} · Fee ${formatLeone(TransferDraft.fee)}',
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 13, color: TpColors.muted),
+                  'Transfer fee: ${formatLeone(fee)} · Total debit: ${formatLeone(total)}',
+                  style: const TextStyle(fontSize: 14, color: TpColors.muted),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 16),
-          PinDisplay(length: 4, value: _pin),
-          Center(
-            child: TextButton(
-              onPressed: () {},
-              child: const Text('Forgot transaction PIN?', style: TextStyle(fontSize: 14)),
-            ),
-          ),
-          NumberKeypad(onDigit: _digit, onDelete: _delete),
-          const SizedBox(height: 8),
-          const InfoBanner(
-            text: 'Secure authorization · Your PIN is never stored on this screen.',
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
 
-/// Transfer 4/4: result.
+/// Transfer 3/3: result, built from the server's transaction.
 class TransferCompleteScreen extends StatelessWidget {
-  const TransferCompleteScreen({
-    super.key,
-    required this.draft,
-    required this.reference,
-    required this.paidAt,
-  });
+  const TransferCompleteScreen({super.key, required this.draft, required this.result});
 
   final TransferDraft draft;
-  final String reference;
-  final DateTime paidAt;
+  final PaymentResult result;
 
   @override
   Widget build(BuildContext context) {
-    final receipt = ReceiptData.transfer(draft, reference, paidAt);
-    return StepScaffold(
+    final txn = result.transaction;
+    final pending = isPending(txn);
+    return PaySuccessScreen(
       eyebrow: 'TRANSFER',
-      counter: '04 / 04',
-      title: 'Transfer complete',
-      headerLabel: 'Done',
-      onBack: () => goHome(context),
-      onHeaderAction: () => goHome(context),
-      primaryLabel: 'Share receipt',
-      // TODO: share the receipt (for example with the share_plus package).
-      onPrimary: () => showMessage(context, 'Sharing is not connected yet.'),
-      secondaryLabel: 'Back to home',
-      onSecondary: () => goHome(context),
-      child: Column(
-        children: [
-          ResultHeader(
-            headline: '${formatLeone(draft.amount)} sent',
-            detail: '${draft.accountName} has received your transfer.',
-          ),
-          const SizedBox(height: 20),
-          DetailsCard(
-            rows: [
-              ('Recipient', draft.accountName),
-              ('Bank / account', '${draft.bank} · ${draft.accountNumber}'),
-              (
-                'Amount + fee',
-                '${formatLeone(draft.amount)} + ${formatLeone(TransferDraft.fee)}',
-              ),
-              ('Total debit', formatLeone(draft.total)),
-              ('Reference', reference),
-              ('Paid at', formatDateTime(paidAt)),
-            ],
-          ),
-          const SizedBox(height: 12),
-          InfoBanner(
-            icon: Icons.check_circle_outline,
-            background: TpColors.greenTint,
-            accent: TpColors.green,
-            textColor: TpColors.green,
-            text: 'Available balance · ${formatLeone(kAccountBalance - draft.total)}',
-          ),
-          const SizedBox(height: 8),
-          Center(
-            child: TextButton(
-              onPressed: () => openScreen(context, ReceiptScreen(data: receipt)),
+      counter: '03 / 03',
+      headline: pending ? '${formatLeone(draft.amount)} is being processed' : '${formatLeone(draft.amount)} sent',
+      detail: pending
+          ? 'Your transfer to ${draft.accountName} is pending confirmation from the bank.'
+          : 'Transfer to ${draft.accountName} completed.',
+      rows: receiptRows(txn),
+      notice: 'Available balance · ${formatLeone(result.balance)}',
+      onPrimary: () => copyReceipt(context, txn),
+      extra: txn.receipt == null
+          ? null
+          : TextButton(
+              onPressed: () => openScreen(context, ReceiptScreen(data: txn.receipt!)),
               child: const Text('View full receipt', style: TextStyle(fontSize: 14)),
             ),
-          ),
-        ],
-      ),
     );
   }
 }

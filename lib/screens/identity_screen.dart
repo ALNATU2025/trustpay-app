@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../services/api.dart';
+import '../services/app_state.dart';
+import '../services/trustpay_api.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
 import '../widgets/step_scaffold.dart';
@@ -19,6 +22,9 @@ class _IdentityScreenState extends State<IdentityScreen> {
   final _idNumber = TextEditingController();
   final _address = TextEditingController();
   String _method = 'NIN';
+  DateTime? _birthDate;
+  bool _busy = false;
+  String? _error;
 
   static const _months = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -43,18 +49,38 @@ class _IdentityScreenState extends State<IdentityScreen> {
       lastDate: DateTime(now.year - 18, now.month, now.day),
     );
     if (picked != null) {
+      _birthDate = picked;
       _dob.text = '${picked.day} ${_months[picked.month - 1]} ${picked.year}';
     }
   }
 
   String? _required(String? v) => (v == null || v.trim().isEmpty) ? 'Required' : null;
 
-  String? _idRule(String? v) => (v == null || v.length != 11) ? 'Enter all 11 digits' : null;
+  String? _idRule(String? v) => (v == null || v.trim().length < 4) ? 'Enter your ID number' : null;
 
-  void _submit() {
-    if (_form.currentState!.validate()) {
-      // TODO: verify identity with your National Civil Registration Authority (NCRA) or KYC provider.
+  Future<void> _submit() async {
+    if (!_form.currentState!.validate() || _busy) return;
+    final dob = _birthDate;
+    if (dob == null) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final user = await api.submitIdentity(
+        legalName: _name.text.trim(),
+        dob: dob,
+        idType: _method,
+        idNumber: _idNumber.text.trim(),
+        address: _address.text.trim(),
+      );
+      appState.setUser(user);
+      if (!mounted) return;
       Navigator.pushNamed(context, '/ready');
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
   }
 
@@ -65,7 +91,8 @@ class _IdentityScreenState extends State<IdentityScreen> {
       title: 'Secure your account',
       subtitle: 'We use your identity details to keep your account safe.',
       primaryLabel: 'Verify identity',
-      onPrimary: _submit,
+      primaryLoading: _busy,
+      onPrimary: _busy ? null : _submit,
       secondaryLabel: 'Back to phone verification',
       onSecondary: () => Navigator.maybePop(context),
       child: Form(
@@ -73,7 +100,7 @@ class _IdentityScreenState extends State<IdentityScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            TpField(label: 'Legal name', controller: _name, hint: 'Aminata Kamara', validator: _required),
+            TpField(label: 'Legal name', controller: _name, hint: 'As shown on your ID', validator: _required),
             const SizedBox(height: 16),
             TpField(
               label: 'Date of birth',
@@ -104,22 +131,22 @@ class _IdentityScreenState extends State<IdentityScreen> {
             ),
             const SizedBox(height: 16),
             TpField(
-              label: '$_method · 11 digits',
+              label: '$_method number',
               controller: _idNumber,
               isPassword: true,
-              digitsOnly: true,
-              maxLength: 11,
-              keyboardType: TextInputType.number,
+              maxLength: 40,
+              keyboardType: TextInputType.text,
               validator: _idRule,
             ),
             const SizedBox(height: 16),
             TpField(
               label: 'Residential address',
               controller: _address,
-              hint: '12 Wilberforce Street, Freetown',
+              hint: 'Street, area and city',
               validator: _required,
             ),
             const SizedBox(height: 16),
+            if (_error != null) ...[ErrorBanner(_error!), const SizedBox(height: 16)],
             const InfoBanner(text: 'Your details are encrypted and used only for identity verification.'),
           ],
         ),

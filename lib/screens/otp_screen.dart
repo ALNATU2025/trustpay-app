@@ -2,6 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../services/api.dart';
+import '../services/app_state.dart';
+import '../services/trustpay_api.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
 import '../widgets/otp_input.dart';
@@ -20,6 +23,9 @@ class _OtpScreenState extends State<OtpScreen> {
   String _code = '';
   int _seconds = 30;
   Timer? _timer;
+  bool _busy = false;
+  String? _error;
+  String? _notice;
 
   @override
   void initState() {
@@ -27,10 +33,41 @@ class _OtpScreenState extends State<OtpScreen> {
     _beginCountdown();
   }
 
-  void _resend() {
-    // TODO: ask your API to send a new code.
-    setState(() => _seconds = 30);
-    _beginCountdown();
+  Future<void> _resend() async {
+    setState(() {
+      _error = null;
+      _notice = null;
+    });
+    try {
+      appState.devOtp = await api.sendOtp();
+      if (!mounted) return;
+      setState(() {
+        _seconds = 30;
+        _notice = 'A new code is on its way.';
+      });
+      _beginCountdown();
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    }
+  }
+
+  Future<void> _verify() async {
+    if (_busy) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final user = await api.verifyOtp(_code);
+      appState.setUser(user);
+      appState.devOtp = null;
+      if (!mounted) return;
+      Navigator.pushNamed(context, '/identity');
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   void _beginCountdown() {
@@ -52,7 +89,7 @@ class _OtpScreenState extends State<OtpScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final phone = (ModalRoute.of(context)?.settings.arguments as String?) ?? 'your phone';
+    final phone = (ModalRoute.of(context)?.settings.arguments as String?) ?? appState.user?.phone ?? 'your phone';
     final canResend = _seconds == 0;
 
     return StepScaffold(
@@ -60,8 +97,8 @@ class _OtpScreenState extends State<OtpScreen> {
       title: 'Verify your phone',
       subtitle: 'Enter the 6-digit code sent to $phone.',
       primaryLabel: 'Verify phone',
-      // TODO: verify the code with your API before moving on.
-      onPrimary: _code.length == _length ? () => Navigator.pushNamed(context, '/identity') : null,
+      primaryLoading: _busy,
+      onPrimary: _code.length == _length && !_busy ? _verify : null,
       secondaryLabel: 'Change phone number',
       onSecondary: () => Navigator.maybePop(context),
       child: Column(
@@ -91,6 +128,13 @@ class _OtpScreenState extends State<OtpScreen> {
             ),
           ),
           const SizedBox(height: 16),
+          if (appState.devOtp != null) ...[
+            InfoBanner(
+              text: 'Test server: your code is ${appState.devOtp}. Real SMS is not connected yet.',
+              icon: Icons.science_outlined,
+            ),
+            const SizedBox(height: 16),
+          ],
           OtpInput(
             length: _length,
             autofocus: true,
@@ -112,6 +156,8 @@ class _OtpScreenState extends State<OtpScreen> {
               ),
             ),
           ),
+          if (_error != null) ...[const SizedBox(height: 8), ErrorBanner(_error!)],
+          if (_notice != null && _error == null) ...[const SizedBox(height: 8), InfoBanner(text: _notice!, icon: Icons.check_circle_outline)],
           const SizedBox(height: 8),
           const InfoBanner(text: 'Never share your verification code. TrustPay will never ask for it.'),
         ],

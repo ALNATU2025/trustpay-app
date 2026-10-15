@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../services/api.dart';
+import '../services/app_state.dart';
+import '../services/trustpay_api.dart';
 import '../theme/app_theme.dart';
 import '../widgets/common.dart';
 import '../widgets/step_scaffold.dart';
@@ -26,6 +29,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final _password = TextEditingController();
   bool _agreed = false;
   bool _termsError = false;
+  bool _busy = false;
+  String? _error;
 
   @override
   void dispose() {
@@ -50,12 +55,30 @@ class _SignUpScreenState extends State<SignUpScreen> {
     return ok ? null : 'At least 8 characters, a number and a symbol';
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     final valid = _form.currentState!.validate();
     setState(() => _termsError = !_agreed);
-    if (valid && _agreed) {
-      // TODO: call your sign-up API here, then request the phone OTP.
-      Navigator.pushNamed(context, '/otp', arguments: _phone.text.trim());
+    if (!valid || !_agreed || _busy) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final result = await api.register(
+        firstName: _first.text.trim(),
+        lastName: _last.text.trim(),
+        email: _email.text.trim(),
+        phone: _phone.text.trim(),
+        password: _password.text,
+      );
+      await appState.signIn(result);
+      if (!mounted) return;
+      appState.devOtp = result.devOtp;
+      Navigator.pushNamed(context, '/otp', arguments: result.user.phone);
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
   }
 
@@ -66,7 +89,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
       title: 'Let’s get to know you',
       subtitle: 'Use the details on your identity document.',
       primaryLabel: 'Create account',
-      onPrimary: _submit,
+      primaryLoading: _busy,
+      onPrimary: _busy ? null : _submit,
       secondaryLabel: 'Already have an account? Log in',
       onSecondary: widget.onSwitch ?? () => Navigator.pushReplacementNamed(context, '/login'),
       child: Form(
@@ -97,7 +121,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
             TpField(
               label: 'Phone number',
               controller: _phone,
-              hint: '+232 76 123 456',
+              hint: '076 123 456',
               keyboardType: TextInputType.phone,
               validator: _required,
             ),
@@ -117,6 +141,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
               ),
             ),
             const SizedBox(height: 12),
+            if (_error != null) ...[
+              ErrorBanner(_error!),
+              const SizedBox(height: 12),
+            ],
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

@@ -10,10 +10,17 @@ import 'screens/onboarding_screen.dart';
 import 'screens/otp_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/welcome_screen.dart';
+import 'services/api.dart';
 import 'theme/app_theme.dart';
+import 'utils/keys.dart';
 import 'utils/nav.dart';
 
-void main() => runApp(const TrustPayApp());
+void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  // Render's free tier sleeps; start waking the server before the first screen is drawn.
+  apiClient.warmUp();
+  runApp(const TrustPayApp());
+}
 
 class TrustPayApp extends StatelessWidget {
   const TrustPayApp({super.key});
@@ -23,6 +30,8 @@ class TrustPayApp extends StatelessWidget {
     return MaterialApp(
       title: 'TrustPay',
       debugShowCheckedModeBanner: false,
+      navigatorKey: navigatorKey,
+      scaffoldMessengerKey: scaffoldMessengerKey,
       theme: buildTheme(),
       builder: (context, child) {
         final media = MediaQuery.of(context);

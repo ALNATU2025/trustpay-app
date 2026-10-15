@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 
-import '../../data/sample_data.dart';
+import '../../models/models.dart';
+import '../../services/api.dart';
+import '../../services/app_state.dart';
+import '../../services/trustpay_api.dart';
 import '../../theme/app_theme.dart';
+import '../../utils/debounce.dart';
 import '../../utils/format.dart';
 import '../../utils/nav.dart';
 import '../../widgets/common.dart';
@@ -40,7 +44,7 @@ void showSendOptions(BuildContext context) {
             MenuTile(
               icon: Icons.phone_android_outlined,
               title: 'To mobile money',
-              subtitle: 'Orange Money, Afrimoney, Qmoney',
+              subtitle: appState.cat.mobileMoney.join(', '),
               onTap: () {
                 Navigator.pop(sheetContext);
                 openScreen(context, const MobileMoneyScreen(send: true));
@@ -62,7 +66,7 @@ void showSendOptions(BuildContext context) {
   );
 }
 
-/// Send to another TrustPay customer by phone or account number. No fee.
+/// Send to another TrustPay customer by account number or phone. No fee.
 class SendToUserScreen extends StatefulWidget {
   const SendToUserScreen({super.key});
 
@@ -75,46 +79,79 @@ class _SendToUserScreenState extends State<SendToUserScreen> {
   final _to = TextEditingController();
   final _amount = TextEditingController();
   final _note = TextEditingController();
-  String? _name;
+  final _debounce = Debouncer();
+  TrustPayUser? _user;
   bool _verifying = false;
+  bool _notFound = false;
+  String? _lookupError;
   int _lookupId = 0;
 
   @override
   void dispose() {
+    _debounce.dispose();
     _to.dispose();
     _amount.dispose();
     _note.dispose();
     super.dispose();
   }
 
-  /// Sample lookup. Replace with your "find a TrustPay user" API.
-  Future<void> _lookup() async {
-    setState(() => _name = null);
-    final digits = _to.text;
-    if (digits.length < 10) {
-      setState(() => _verifying = false);
-      return;
-    }
-    final id = ++_lookupId;
-    setState(() => _verifying = true);
-    await Future<void>.delayed(const Duration(milliseconds: 500));
-    if (!mounted || id != _lookupId) return;
+  /// A 10-digit number is an account number; 8, 9, 11 or 12 digits is a phone number.
+  bool _isAccount(String d) => d.length == 10;
+  bool _isPhone(String d) => d.length == 8 || d.length == 9 || d.length == 11 || d.length == 12;
+
+  bool _isOwn(String d) {
+    final me = appState.me;
+    return d == me.accountNumber || (_isPhone(d) && samePhone(d, me.phone));
+  }
+
+  void _onChanged() {
+    _lookupId++;
+    _debounce.cancel();
+    final d = _to.text;
+    final ready = (_isAccount(d) || _isPhone(d)) && !_isOwn(d);
     setState(() {
-      _name = 'Mohamed Sesay';
-      _verifying = false;
+      _user = null;
+      _notFound = false;
+      _lookupError = null;
+      _verifying = ready;
     });
+    if (ready) _debounce.run(_lookup);
+  }
+
+  Future<void> _lookup() async {
+    final d = _to.text;
+    final id = ++_lookupId;
+    try {
+      final user = _isAccount(d) ? await api.lookupUser(accountNumber: d) : await api.lookupUser(phone: d);
+      if (!mounted || id != _lookupId) return;
+      setState(() {
+        _user = user;
+        _notFound = user == null;
+        _verifying = false;
+      });
+    } on ApiException catch (e) {
+      if (!mounted || id != _lookupId) return;
+      setState(() {
+        _verifying = false;
+        _lookupError = e.message;
+      });
+    }
   }
 
   void _review() {
     if (!_form.currentState!.validate()) return;
-    final name = _name;
-    if (name == null) {
-      showMessage(context, 'Enter a valid TrustPay number first.');
+    final user = _user;
+    if (user == null) {
+      showMessage(context, 'Enter a valid TrustPay account number or phone first.');
+      return;
+    }
+    if (user.accountNumber == appState.me.accountNumber) {
+      showMessage(context, 'That is your own account.');
       return;
     }
     final amount = parseAmount(_amount.text);
     final note = _note.text.trim();
-    final to = _to.text;
+    final name = user.fullName;
 
     openScreen(
       context,
@@ -124,29 +161,35 @@ class _SendToUserScreenState extends State<SendToUserScreen> {
         title: 'Confirm transfer',
         bannerLabel: 'Sending to $name · no fee',
         total: amount,
-        referenceCode: 'TPU',
         payLabel: 'Send',
         notice: 'Only send to people you know. Transfers between TrustPay users cannot be reversed.',
         rows: [
           ('To', name),
-          ('TrustPay number', to),
+          ('TrustPay number', user.accountNumber),
           ('Amount', formatLeone(amount)),
           if (note.isNotEmpty) ('Note', note),
-          ('Balance after', formatLeone(kAccountBalance - amount)),
+          ('Balance after', formatLeone(appState.balance - amount)),
         ],
-        successBuilder: (reference) => PaySuccessScreen(
-          eyebrow: 'SEND MONEY · TRUSTPAY USER',
-          counter: '03 / 03',
-          headline: '${formatLeone(amount)} sent',
-          detail: 'To $name',
-          notice: 'Balance ${formatLeone(kAccountBalance - amount)}',
-          rows: [
-            ('To', name),
-            ('Amount', formatLeone(amount)),
-            ('Fee', formatLeone(0)),
-            ('Reference', reference),
-          ],
+        onPay: (pin, key) => api.transferUser(
+          accountNumber: user.accountNumber,
+          amount: amount,
+          note: note,
+          pin: pin,
+          idempotencyKey: key,
         ),
+        successBuilder: (result) {
+          final txn = result.transaction;
+          final pending = isPending(txn);
+          return PaySuccessScreen(
+            eyebrow: 'SEND MONEY · TRUSTPAY USER',
+            counter: '03 / 03',
+            headline: pending ? '${formatLeone(amount)} is being processed' : '${formatLeone(amount)} sent',
+            detail: 'To $name',
+            notice: 'Balance ${formatLeone(result.balance)}',
+            rows: receiptRows(txn),
+            onPrimary: () => copyReceipt(context, txn),
+          );
+        },
       ),
     );
   }
@@ -164,62 +207,73 @@ class _SendToUserScreenState extends State<SendToUserScreen> {
       onPrimary: _review,
       secondaryLabel: 'Back',
       onSecondary: () => Navigator.maybePop(context),
-      child: Form(
-        key: _form,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            TpField(
-              label: 'Phone or account number',
-              controller: _to,
-              hint: '10 or 11 digits',
-              keyboardType: TextInputType.number,
-              digitsOnly: true,
-              maxLength: 11,
-              onChanged: (_) => _lookup(),
-              validator: (v) {
-                if (v == null || v.length < 10) return 'Enter at least 10 digits';
-                if (v == kAccountNumber) return 'That is your own account';
-                return null;
-              },
-            ),
-            const SizedBox(height: 10),
-            if (_name != null)
-              InfoBanner(
-                icon: Icons.check_circle_outline,
-                background: TpColors.greenTint,
-                accent: TpColors.green,
-                textColor: TpColors.green,
-                text: 'TrustPay user found · $_name',
-              )
-            else if (_verifying)
-              const Text('Looking up…', style: TextStyle(fontSize: 13, color: TpColors.muted)),
-            const SizedBox(height: 16),
-            TpField(
-              label: 'Amount',
-              controller: _amount,
-              hint: '0.00',
-              prefixText: 'Le ',
-              allowDecimal: true,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              onChanged: (_) => setState(() {}),
-              validator: (v) {
-                final a = parseAmount(v ?? '');
-                if (a <= 0) return 'Enter an amount';
-                if (a > kAccountBalance) return 'Insufficient balance';
-                return null;
-              },
-            ),
-            const SizedBox(height: 8),
-            AmountChips(
-              amounts: const [100, 500, 1000, 2000],
-              onPick: (a) => setState(() => _amount.text = a.toStringAsFixed(0)),
-            ),
-            const SizedBox(height: 16),
-            TpField(label: 'Note (optional)', controller: _note, hint: 'What is it for?', maxLength: 60),
-            const SizedBox(height: 6),
-            Text(balanceLine(), style: const TextStyle(fontSize: 13, color: TpColors.muted)),
-          ],
+      child: ListenableBuilder(
+        listenable: appState,
+        builder: (context, _) => Form(
+          key: _form,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TpField(
+                label: 'Account number or phone',
+                controller: _to,
+                hint: '10-digit account number or phone',
+                keyboardType: TextInputType.number,
+                digitsOnly: true,
+                maxLength: 12,
+                onChanged: (_) => _onChanged(),
+                validator: (v) {
+                  final d = v ?? '';
+                  if (!_isAccount(d) && !_isPhone(d)) return 'Enter a 10-digit account number or a phone number';
+                  if (_isOwn(d)) return 'That is your own account';
+                  return null;
+                },
+              ),
+              const SizedBox(height: 10),
+              if (_user != null)
+                InfoBanner(
+                  icon: Icons.check_circle_outline,
+                  background: TpColors.greenTint,
+                  accent: TpColors.green,
+                  textColor: TpColors.green,
+                  text: 'TrustPay user found · ${_user!.fullName}',
+                )
+              else if (_verifying)
+                const Text('Looking up…', style: TextStyle(fontSize: 13, color: TpColors.muted))
+              else if (_notFound)
+                const Text(
+                  'No TrustPay account found for this number.',
+                  style: TextStyle(fontSize: 13, color: TpColors.danger),
+                )
+              else if (_lookupError != null)
+                Text(_lookupError!, style: const TextStyle(fontSize: 13, color: TpColors.danger)),
+              const SizedBox(height: 16),
+              TpField(
+                label: 'Amount',
+                controller: _amount,
+                hint: '0.00',
+                prefixText: 'Le ',
+                allowDecimal: true,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                onChanged: (_) => setState(() {}),
+                validator: (v) {
+                  final a = parseAmount(v ?? '');
+                  if (a <= 0) return 'Enter an amount';
+                  if (a > appState.balance) return 'Insufficient balance';
+                  return null;
+                },
+              ),
+              const SizedBox(height: 8),
+              AmountChips(
+                amounts: const [100, 500, 1000, 2000],
+                onPick: (a) => setState(() => _amount.text = a.toStringAsFixed(0)),
+              ),
+              const SizedBox(height: 16),
+              TpField(label: 'Note (optional)', controller: _note, hint: 'What is it for?', maxLength: 60),
+              const SizedBox(height: 6),
+              Text(balanceLine(), style: const TextStyle(fontSize: 13, color: TpColors.muted)),
+            ],
+          ),
         ),
       ),
     );
