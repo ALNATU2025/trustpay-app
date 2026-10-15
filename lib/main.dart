@@ -17,7 +17,7 @@ import 'utils/nav.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  // Render's free tier sleeps; start waking the server before the first screen is drawn.
+  // Warm up the connection before the first screen is drawn.
   apiClient.warmUp();
   runApp(const TrustPayApp());
 }

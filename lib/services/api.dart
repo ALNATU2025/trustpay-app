@@ -192,7 +192,7 @@ class ApiClient {
           ?..hideCurrentSnackBar()
           ..showSnackBar(
             const SnackBar(
-              content: Text('Waking up the server. This can take up to a minute the first time.'),
+              content: Text('Connecting to TrustPay. This is taking longer than usual, please wait.'),
               duration: Duration(minutes: 2),
             ),
           );
