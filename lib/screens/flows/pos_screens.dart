@@ -16,6 +16,7 @@ import '../../widgets/step_scaffold.dart';
 import '../support/support_screen.dart';
 import 'generic_flow.dart';
 import 'merchant_pay_screens.dart';
+import 'pos_bank_screen.dart';
 import 'pos_charge_screen.dart';
 
 /// "Mon 12 Oct" style window for the expected delivery of a terminal.
@@ -78,6 +79,12 @@ class PosTab extends StatelessWidget {
                 title: 'My merchant code & QR',
                 subtitle: 'A permanent code customers scan or type to pay you. Print it',
                 onTap: () => openScreen(context, const MerchantCodeScreen()),
+              ),
+              const SizedBox(height: 16),
+              SettlementAccountCard(
+                account: overview.settlementAccount,
+                merchantCode: overview.merchantCode,
+                onChanged: reload,
               ),
               const SizedBox(height: 16),
               ..._content(context, overview, reload),

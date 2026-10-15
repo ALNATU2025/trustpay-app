@@ -368,6 +368,27 @@ class TrustPayApi {
         if (note.isNotEmpty) 'note': note,
       }, key: idempotencyKey))['charge']);
 
+  /// Links (or replaces) the merchant's bank account. The server verifies the name with the bank.
+  Future<Map<String, dynamic>?> linkSettlementAccount({
+    required String bank,
+    required String accountNumber,
+    required bool payToBank,
+    required String pin,
+  }) async {
+    final r = await _post('/pos/settlement-account', {'bank': bank, 'accountNumber': accountNumber, 'payToBank': payToBank, 'pin': pin});
+    final a = r['account'];
+    return a is Map ? asMap(a) : null;
+  }
+
+  Future<Map<String, dynamic>?> setSettlementTarget({required bool payToBank, required String pin}) async {
+    final a = (await _post('/pos/settlement-account/target', {'payToBank': payToBank, 'pin': pin}))['account'];
+    return a is Map ? asMap(a) : null;
+  }
+
+  Future<void> unlinkSettlementAccount(String pin) async {
+    await _post('/pos/settlement-account/unlink', {'pin': pin});
+  }
+
   /// The merchant's permanent code, business name and QR payload.
   Future<Map<String, dynamic>> posCode() async => _get('/pos/code');
 

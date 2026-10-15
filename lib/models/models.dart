@@ -839,6 +839,8 @@ class PosOverview {
     required this.nextSettlement,
     required this.recent,
     required this.request,
+    this.settlementAccount,
+    this.merchantCode = '',
   });
 
   factory PosOverview.fromJson(Map<String, dynamic> j) {
@@ -851,9 +853,14 @@ class PosOverview {
       nextSettlement: j['nextSettlement'] is Map ? Settlement.fromJson(asMap(j['nextSettlement'])) : null,
       recent: [for (final r in asMapList(j['recent'])) PosRecent.fromJson(r)],
       request: j['request'] is Map ? PosRequest.fromJson(asMap(j['request'])) : null,
+      settlementAccount: j['settlementAccount'] is Map ? asMap(j['settlementAccount']) : null,
+      merchantCode: asStr(j['merchantCode']),
     );
   }
 
+  /// Linked bank account `{bank, accountName, accountNumber (masked), payToBank}` or null.
+  final Map<String, dynamic>? settlementAccount;
+  final String merchantCode;
   final String businessName;
   final PosTerminal? terminal;
   final double todayCollected;
