@@ -402,6 +402,54 @@ class TrustPayApi {
   Future<AdminUser> setUserStatus(String id, String status) async =>
       AdminUser.fromJson(asMap((await _c.patch('/admin/users/$id', body: {'status': status}))['user']));
 
+  PagedList<Map<String, dynamic>> _paged(Map<String, dynamic> res, int page) =>
+      PagedList(asMapList(res['items']), asInt(res['page'], page), asBool(res['hasMore']));
+
+  /// Every transaction on the platform. [service]: all|transfer|bill|airtime|funding.
+  Future<PagedList<Map<String, dynamic>>> adminTransactions({
+    String service = 'all',
+    String? status,
+    String? direction,
+    String? userId,
+    String? q,
+    bool review = false,
+    int page = 1,
+  }) async =>
+      _paged(
+        await _get('/admin/transactions', query: {
+          'service': service,
+          'status': status,
+          'direction': direction,
+          'user': userId,
+          'q': q,
+          'review': review ? '1' : null,
+          'page': page,
+          'limit': 30,
+        }),
+        page,
+      );
+
+  Future<Map<String, dynamic>> adminUserDetail(String id) async => _get('/admin/users/$id');
+
+  Future<void> adminUnlockUser(String id) async {
+    await _post('/admin/users/$id/unlock', {});
+  }
+
+  /// Manual credit/debit. [type] is `credit` or `debit`; [key] makes a retry safe.
+  Future<Map<String, dynamic>> adminAdjustBalance(
+    String id, {
+    required String type,
+    required double amount,
+    required String reason,
+    required String key,
+  }) async =>
+      _post('/admin/users/$id/funding', {'type': type, 'amount': amount, 'reason': reason, 'key': key});
+
+  Future<Map<String, dynamic>> adminPosOverview() async => _get('/admin/pos/overview');
+
+  Future<PagedList<Map<String, dynamic>>> adminPosList(String what, {String? ownerId, String? q, int page = 1}) async =>
+      _paged(await _get('/admin/pos/$what', query: {'owner': ownerId, 'q': q, 'page': page, 'limit': 30}), page);
+
   Future<List<Approval>> adminApprovals() async =>
       [for (final a in asMapList((await _get('/admin/approvals'))['items'])) Approval.fromJson(a)];
 

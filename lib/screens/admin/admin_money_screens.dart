@@ -1,0 +1,749 @@
+import 'package:flutter/material.dart';
+
+import '../../models/models.dart';
+import '../../services/api.dart';
+import '../../services/app_state.dart';
+import '../../services/trustpay_api.dart';
+import '../../theme/app_theme.dart';
+import '../../utils/debounce.dart';
+import '../../utils/format.dart';
+import '../../utils/nav.dart';
+import '../../widgets/api_builder.dart';
+import '../../widgets/common.dart';
+import '../../widgets/menu_widgets.dart';
+
+typedef _Json = Map<String, dynamic>;
+
+DateTime? _date(dynamic v) => v == null ? null : DateTime.tryParse(v.toString())?.toLocal();
+String _when(dynamic v) {
+  final d = _date(v);
+  return d == null ? '' : formatShortDateTime(d);
+}
+
+Color _statusTone(String s) => switch (s) {
+      'Successful' || 'Paid' || 'active' => TpColors.primary,
+      'Pending' || 'Processing' => const Color(0xFFB7791F),
+      _ => const Color(0xFFC53030),
+    };
+
+Widget _pill(String text, Color color) => Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(20)),
+      child: Text(text, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: color)),
+    );
+
+Widget _searchBox(String hint, ValueChanged<String> onChanged) => TextField(
+      onChanged: onChanged,
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: const TextStyle(color: TpColors.muted),
+        prefixIcon: const Icon(Icons.search, color: TpColors.muted),
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: const EdgeInsets.symmetric(vertical: 14),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(28), borderSide: BorderSide.none),
+      ),
+    );
+
+Widget _kv(String k, String v) => Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(width: 120, child: Text(k, style: const TextStyle(color: TpColors.muted, fontSize: 13))),
+          Expanded(child: Text(v.isEmpty ? '—' : v, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14))),
+        ],
+      ),
+    );
+
+/// A reusable paged list: owns paging, search and errors. [fetch] returns one page.
+class _PagedView extends StatefulWidget {
+  const _PagedView({super.key, required this.fetch, required this.rowBuilder, this.empty = 'Nothing here yet.'});
+
+  final Future<PagedList<_Json>> Function(int page) fetch;
+  final Widget Function(BuildContext context, _Json item) rowBuilder;
+  final String empty;
+
+  @override
+  State<_PagedView> createState() => _PagedViewState();
+}
+
+class _PagedViewState extends State<_PagedView> {
+  final _items = <_Json>[];
+  int _page = 1;
+  bool _hasMore = false;
+  bool _loading = true;
+  bool _loadingMore = false;
+  String? _error;
+  int _round = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final round = ++_round;
+    setState(() {
+      _loading = true;
+      _loadingMore = false;
+      _error = null;
+    });
+    try {
+      final res = await widget.fetch(1);
+      if (!mounted || round != _round) return;
+      setState(() {
+        _items
+          ..clear()
+          ..addAll(res.items);
+        _page = res.page;
+        _hasMore = res.hasMore;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted || round != _round) return;
+      setState(() {
+        _error = errorMessage(e);
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _more() async {
+    if (_loadingMore || !_hasMore) return;
+    final round = _round;
+    setState(() => _loadingMore = true);
+    try {
+      final res = await widget.fetch(_page + 1);
+      if (!mounted || round != _round) return;
+      setState(() {
+        _items.addAll(res.items);
+        _page = res.page;
+        _hasMore = res.hasMore;
+        _loadingMore = false;
+      });
+    } catch (e) {
+      if (!mounted || round != _round) return;
+      setState(() => _loadingMore = false);
+      showMessage(context, errorMessage(e));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return const Padding(padding: EdgeInsets.symmetric(vertical: 32), child: CircularProgressIndicator());
+    }
+    if (_error != null) return ErrorRetry(message: _error!, onRetry: _load);
+    if (_items.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 32),
+        child: Text(widget.empty, style: const TextStyle(color: TpColors.muted)),
+      );
+    }
+    return Column(
+      children: [
+        MenuGroup(children: [for (final it in _items) widget.rowBuilder(context, it)]),
+        if (_hasMore) ...[
+          const SizedBox(height: 14),
+          _loadingMore ? const CircularProgressIndicator() : SecondaryButton(label: 'Load more', onPressed: _more),
+        ],
+      ],
+    );
+  }
+}
+
+// ------------------------------------------------------- all transactions
+
+Widget _txnRow(BuildContext context, _Json t, {bool showOwner = true}) {
+  final amount = (t['amount'] as num?)?.toDouble() ?? 0;
+  final status = asStr(t['status']);
+  return InkWell(
+    key: ValueKey(asStr(t['id'])),
+    onTap: () => _showTxn(context, t),
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(asStr(t['title']), maxLines: 1, overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 2),
+                Text(
+                  [if (showOwner) asStr(t['owner']), _when(t['createdAt'])].where((e) => e.isNotEmpty).join(' · '),
+                  style: const TextStyle(fontSize: 12.5, color: TpColors.muted),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(formatLeone(amount, showSign: true),
+                  style: TextStyle(fontWeight: FontWeight.w800, color: amount >= 0 ? TpColors.primary : null)),
+              const SizedBox(height: 4),
+              Row(mainAxisSize: MainAxisSize.min, children: [
+                if (t['needsReview'] == true) ...[
+                  const Icon(Icons.flag_outlined, size: 15, color: Color(0xFFC53030)),
+                  const SizedBox(width: 4),
+                ],
+                _pill(status, _statusTone(status)),
+              ]),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+void _showTxn(BuildContext context, _Json t) {
+  final rawRows = t['receipt'] is Map ? (t['receipt'] as Map)['rows'] : null;
+  final rows = rawRows is List ? rawRows : const [];
+  showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.white,
+    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
+    builder: (c) => SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(asStr(t['title']), style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 4),
+            Text(formatLeone((t['amount'] as num?)?.toDouble() ?? 0, showSign: true),
+                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 12),
+            _kv('Status', asStr(t['status'])),
+            _kv('Reference', asStr(t['reference'])),
+            _kv('Customer', asStr(t['owner'])),
+            _kv('Account', asStr(t['ownerAccount'])),
+            _kv('Type', asStr(t['subtype'])),
+            _kv('Date', _when(t['createdAt'])),
+            if (asStr(t['provider']).isNotEmpty) _kv('Provider ref', asStr(t['provider'])),
+            if (asStr(t['failureReason']).isNotEmpty) _kv('Failure', asStr(t['failureReason'])),
+            if (t['needsReview'] == true) _kv('Flag', 'Needs review'),
+            for (final r in rows)
+              if (r is List && r.length >= 2) _kv(r[0].toString(), r[1].toString()),
+            const SizedBox(height: 14),
+            SecondaryButton(label: 'Close', onPressed: () => Navigator.pop(c)),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+/// Staff ledger of every transaction (or one customer's, when [userId] is set).
+class AdminTransactionsScreen extends StatefulWidget {
+  const AdminTransactionsScreen({super.key, this.userId, this.title = 'All transactions'});
+
+  final String? userId;
+  final String title;
+
+  @override
+  State<AdminTransactionsScreen> createState() => _AdminTransactionsScreenState();
+}
+
+class _AdminTransactionsScreenState extends State<AdminTransactionsScreen> {
+  final _debounce = Debouncer();
+  String _service = 'all';
+  String? _status;
+  bool _review = false;
+  String _q = '';
+  int _gen = 0;
+
+  @override
+  void dispose() {
+    _debounce.dispose();
+    super.dispose();
+  }
+
+  Widget _chip(String label, bool on, VoidCallback tap) => Padding(
+        padding: const EdgeInsets.only(right: 8),
+        child: ChoiceChip(label: Text(label), selected: on, onSelected: (_) => tap()),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    return PlainScaffold(
+      title: widget.title,
+      child: Column(
+        children: [
+          _searchBox('Search reference, name or account', (v) {
+            _q = v;
+            _debounce.run(() => setState(() => _gen++));
+          }),
+          const SizedBox(height: 10),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(children: [
+              for (final s in const ['all', 'transfer', 'bill', 'airtime', 'funding'])
+                _chip(_capitalize(s), _service == s, () => setState(() {
+                      _service = s;
+                      _gen++;
+                    })),
+            ]),
+          ),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(children: [
+              _chip('Any status', _status == null && !_review, () => setState(() {
+                    _status = null;
+                    _review = false;
+                    _gen++;
+                  })),
+              for (final s in const ['Successful', 'Pending', 'Failed'])
+                _chip(s, _status == s, () => setState(() {
+                      _status = s;
+                      _review = false;
+                      _gen++;
+                    })),
+              _chip('Needs review', _review, () => setState(() {
+                    _review = true;
+                    _status = null;
+                    _gen++;
+                  })),
+            ]),
+          ),
+          const SizedBox(height: 10),
+          _PagedView(
+            key: ValueKey('$_gen'),
+            empty: 'No transactions match.',
+            fetch: (page) => api.adminTransactions(
+              service: _service,
+              status: _status,
+              userId: widget.userId,
+              q: _q.trim().isEmpty ? null : _q.trim(),
+              review: _review,
+              page: page,
+            ),
+            rowBuilder: (c, t) => _txnRow(c, t, showOwner: widget.userId == null),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+String _capitalize(String s) => s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';
+
+// ------------------------------------------------------------ user profile
+
+/// One customer: balance, status, manual credit/debit, suspend and recent activity.
+class AdminUserDetailScreen extends StatefulWidget {
+  const AdminUserDetailScreen({super.key, required this.userId});
+
+  final String userId;
+
+  @override
+  State<AdminUserDetailScreen> createState() => _AdminUserDetailScreenState();
+}
+
+class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
+  int _gen = 0;
+
+  Future<void> _toggleStatus(_Json u) async {
+    final suspend = asStr(u['status']) != 'suspended';
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (d) => AlertDialog(
+        title: Text(suspend ? 'Suspend account?' : 'Reactivate account?'),
+        content: Text(suspend
+            ? '${asStr(u['name'])} will be signed out and cannot make payments until reactivated.'
+            : '${asStr(u['name'])} will be able to sign in and pay again.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(d, true), child: Text(suspend ? 'Suspend' : 'Reactivate')),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    try {
+      await api.setUserStatus(widget.userId, suspend ? 'suspended' : 'active');
+      if (!mounted) return;
+      setState(() => _gen++);
+    } catch (e) {
+      if (mounted) showMessage(context, errorMessage(e));
+    }
+  }
+
+  Future<void> _unlock() async {
+    try {
+      await api.adminUnlockUser(widget.userId);
+      if (!mounted) return;
+      showMessage(context, 'PIN lock cleared');
+      setState(() => _gen++);
+    } catch (e) {
+      if (mounted) showMessage(context, errorMessage(e));
+    }
+  }
+
+  Future<void> _adjust(_Json u) async {
+    final done = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
+      builder: (c) => _AdjustSheet(userId: widget.userId, name: asStr(u['name']), balance: (u['balance'] as num?)?.toDouble() ?? 0),
+    );
+    if (done == true && mounted) setState(() => _gen++);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isAdmin = appState.me.isAdmin;
+    return PlainScaffold(
+      title: 'Customer',
+      child: ApiBuilder<_Json>(
+        key: ValueKey(_gen),
+        load: () => api.adminUserDetail(widget.userId),
+        builder: (context, data, reload) {
+          final u = asMap(data['user']);
+          final recent = asMapList(data['recent']);
+          final status = asStr(u['status']);
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                Avatar(name: asStr(u['name']), size: 56),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(asStr(u['name']), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+                    Text(asStr(u['phone']), style: const TextStyle(color: TpColors.muted)),
+                  ]),
+                ),
+                _pill(status, _statusTone(status == 'suspended' ? 'Failed' : status == 'active' ? 'Paid' : 'Pending')),
+              ]),
+              const SizedBox(height: 16),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(color: TpColors.tint, borderRadius: BorderRadius.circular(18)),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const Text('Wallet balance', style: TextStyle(color: TpColors.muted, fontSize: 13)),
+                  Text(formatLeone((u['balance'] as num?)?.toDouble() ?? 0),
+                      style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800)),
+                ]),
+              ),
+              const SizedBox(height: 12),
+              _kv('Tier', asStr(u['tier'])),
+              _kv('Email', asStr(u['email'])),
+              _kv('Account no.', asStr(u['accountNumber'])),
+              _kv('Identity check', asStr(u['kycStatus'])),
+              _kv('Last sign-in', _when(u['lastLoginAt'])),
+              _kv('Joined', _when(u['createdAt'])),
+              if (u['locked'] == true) _kv('PIN', 'Locked after failed attempts'),
+              const SizedBox(height: 16),
+              if (isAdmin) ...[
+                PrimaryButton(label: 'Credit or debit balance', onPressed: () => _adjust(u)),
+                const SizedBox(height: 8),
+                if (status != 'pending_kyc')
+                  SecondaryButton(
+                    label: status == 'suspended' ? 'Reactivate account' : 'Suspend account',
+                    onPressed: () => _toggleStatus(u),
+                  ),
+                if (u['locked'] == true) ...[
+                  const SizedBox(height: 8),
+                  SecondaryButton(label: 'Clear PIN lock', onPressed: _unlock),
+                ],
+                const SizedBox(height: 8),
+              ],
+              SecondaryButton(
+                label: 'All transactions for ${asStr(u['name'])}',
+                onPressed: () => openScreen(
+                  context,
+                  AdminTransactionsScreen(userId: widget.userId, title: asStr(u['name'])),
+                ),
+              ),
+              if (data['hasTerminal'] == true) ...[
+                const SizedBox(height: 8),
+                SecondaryButton(
+                  label: 'POS activity',
+                  onPressed: () => openScreen(context, AdminPosScreen(ownerId: widget.userId, title: asStr(u['name']))),
+                ),
+              ],
+              const SizedBox(height: 18),
+              const Text('RECENT ACTIVITY',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 0.8, color: TpColors.muted)),
+              const SizedBox(height: 8),
+              if (recent.isEmpty)
+                const Text('No transactions yet.', style: TextStyle(color: TpColors.muted))
+              else
+                MenuGroup(children: [for (final t in recent) _txnRow(context, t, showOwner: false)]),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _AdjustSheet extends StatefulWidget {
+  const _AdjustSheet({required this.userId, required this.name, required this.balance});
+
+  final String userId;
+  final String name;
+  final double balance;
+
+  @override
+  State<_AdjustSheet> createState() => _AdjustSheetState();
+}
+
+class _AdjustSheetState extends State<_AdjustSheet> {
+  final _amount = TextEditingController();
+  final _reason = TextEditingController();
+  // One key per sheet: a double tap or retry can never apply the adjustment twice.
+  final String _key = newIdempotencyKey();
+  String _type = 'credit';
+  bool _busy = false;
+  String? _error;
+
+  @override
+  void dispose() {
+    _amount.dispose();
+    _reason.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final amount = double.tryParse(_amount.text.replaceAll(',', '').trim());
+    if (amount == null || amount <= 0) {
+      setState(() => _error = 'Enter an amount greater than zero.');
+      return;
+    }
+    if (_reason.text.trim().length < 5) {
+      setState(() => _error = 'Give a reason of at least 5 characters (it is kept in the audit trail).');
+      return;
+    }
+    if (_type == 'debit' && amount > widget.balance) {
+      setState(() => _error = 'That is more than the customer\'s balance.');
+      return;
+    }
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (d) => AlertDialog(
+        title: Text(_type == 'credit' ? 'Credit account?' : 'Debit account?'),
+        content: Text('${_type == 'credit' ? 'Add' : 'Remove'} ${formatLeone(amount)} '
+            '${_type == 'credit' ? 'to' : 'from'} ${widget.name}\'s wallet.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(d, true), child: const Text('Confirm')),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await api.adminAdjustBalance(widget.userId, type: _type, amount: amount, reason: _reason.text.trim(), key: _key);
+      if (!mounted) return;
+      Navigator.pop(context, true);
+      showMessage(context, _type == 'credit' ? 'Account credited' : 'Account debited');
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _busy = false;
+        _error = errorMessage(e);
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + MediaQuery.of(context).viewInsets.bottom),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Adjust ${widget.name}\'s balance', style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 4),
+            Text('Current balance ${formatLeone(widget.balance)}', style: const TextStyle(color: TpColors.muted)),
+            const SizedBox(height: 14),
+            SegmentedButton<String>(
+              segments: const [
+                ButtonSegment(value: 'credit', label: Text('Credit (add)')),
+                ButtonSegment(value: 'debit', label: Text('Debit (remove)')),
+              ],
+              selected: {_type},
+              onSelectionChanged: (s) => setState(() => _type = s.first),
+            ),
+            const SizedBox(height: 14),
+            TpField(label: 'Amount', controller: _amount, hint: '0.00', allowDecimal: true, prefixText: kCurrencySymbol),
+            const SizedBox(height: 12),
+            TpField(label: 'Reason (audit trail)', controller: _reason, hint: 'e.g. Refund for failed bank payout', maxLength: 200),
+            if (_error != null) ...[
+              const SizedBox(height: 10),
+              Text(_error!, style: const TextStyle(color: Color(0xFFC53030), fontWeight: FontWeight.w600)),
+            ],
+            const SizedBox(height: 16),
+            PrimaryButton(label: _type == 'credit' ? 'Credit account' : 'Debit account', loading: _busy, onPressed: _busy ? () {} : _submit),
+            const SizedBox(height: 8),
+            SecondaryButton(label: 'Cancel', onPressed: () => Navigator.pop(context, false)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ------------------------------------------------------------ merchants / POS
+
+/// Merchants & POS: totals plus terminals, POS payments and payouts (settlements).
+class AdminPosScreen extends StatefulWidget {
+  const AdminPosScreen({super.key, this.ownerId, this.title = 'Merchants & POS'});
+
+  final String? ownerId;
+  final String title;
+
+  @override
+  State<AdminPosScreen> createState() => _AdminPosScreenState();
+}
+
+class _AdminPosScreenState extends State<AdminPosScreen> {
+  String _tab = 'payments';
+
+  Widget _kpi(String label, String value) => Expanded(
+        child: Container(
+          margin: const EdgeInsets.only(right: 8),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(label, style: const TextStyle(fontSize: 11.5, color: TpColors.muted)),
+            const SizedBox(height: 4),
+            Text(value, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
+          ]),
+        ),
+      );
+
+  Widget _terminalRow(BuildContext c, _Json t) => Padding(
+        key: ValueKey(asStr(t['id'])),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Row(children: [
+          const Icon(Icons.point_of_sale, color: TpColors.primary),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('${asStr(t['code'])} · ${asStr(t['businessName']).isEmpty ? asStr(t['owner']) : asStr(t['businessName'])}',
+                  style: const TextStyle(fontWeight: FontWeight.w700)),
+              Text([asStr(t['owner']), asStr(t['location'])].where((e) => e.isNotEmpty).join(' · '),
+                  style: const TextStyle(fontSize: 12.5, color: TpColors.muted)),
+              if (_when(t['lastSync']).isNotEmpty)
+                Text('Last sync ${_when(t['lastSync'])}', style: const TextStyle(fontSize: 12, color: TpColors.muted)),
+            ]),
+          ),
+          _pill(asStr(t['status']), _statusTone(asStr(t['status']))),
+        ]),
+      );
+
+  Widget _paymentRow(BuildContext c, _Json p) => Padding(
+        key: ValueKey(asStr(p['id'])),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Row(children: [
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(asStr(p['owner']), style: const TextStyle(fontWeight: FontWeight.w700)),
+              Text(
+                '${asStr(p['terminalCode'])} · ${_capitalize(asStr(p['kind']))} · ${_when(p['createdAt'])}\n${asStr(p['reference'])}',
+                style: const TextStyle(fontSize: 12.5, color: TpColors.muted),
+              ),
+            ]),
+          ),
+          Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+            Text(formatLeone((p['amount'] as num?)?.toDouble() ?? 0), style: const TextStyle(fontWeight: FontWeight.w800)),
+            const SizedBox(height: 4),
+            _pill(p['settled'] == true ? 'Paid out' : 'Unsettled', p['settled'] == true ? TpColors.primary : const Color(0xFFB7791F)),
+          ]),
+        ]),
+      );
+
+  Widget _payoutRow(BuildContext c, _Json s) => Padding(
+        key: ValueKey(asStr(s['id'])),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Row(children: [
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(asStr(s['owner']), style: const TextStyle(fontWeight: FontWeight.w700)),
+              Text(
+                '${asStr(s['reference'])} · ${asInt(s['count'])} payments\n'
+                'Gross ${formatLeone((s['gross'] as num?)?.toDouble() ?? 0)} · Fee ${formatLeone((s['fee'] as num?)?.toDouble() ?? 0)}\n'
+                '${asStr(s['status']) == 'Paid' ? 'Paid ${_when(s['settledAt'])}' : 'Due ${_when(s['scheduledFor'])}'} → ${asStr(s['destination'])}',
+                style: const TextStyle(fontSize: 12.5, color: TpColors.muted),
+              ),
+            ]),
+          ),
+          Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+            Text(formatLeone((s['net'] as num?)?.toDouble() ?? 0), style: const TextStyle(fontWeight: FontWeight.w800)),
+            const SizedBox(height: 4),
+            _pill(asStr(s['status']), _statusTone(asStr(s['status']))),
+          ]),
+        ]),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final what = switch (_tab) {
+      'terminals' => 'terminals',
+      'payouts' => 'settlements',
+      _ => 'payments',
+    };
+    return PlainScaffold(
+      title: widget.title,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (widget.ownerId == null)
+            ApiBuilder<_Json>(
+              load: api.adminPosOverview,
+              builder: (context, o, reload) => Column(children: [
+                Row(children: [
+                  _kpi('Active terminals', '${asInt(o['activeTerminals'])}'),
+                  _kpi('POS volume', formatLeone((o['paymentsVolume'] as num?)?.toDouble() ?? 0, decimals: 0)),
+                ]),
+                const SizedBox(height: 8),
+                Row(children: [
+                  _kpi('Payouts processing', formatLeone((o['payoutsProcessing'] as num?)?.toDouble() ?? 0, decimals: 0)),
+                  _kpi('Paid out', formatLeone((o['payoutsPaid'] as num?)?.toDouble() ?? 0, decimals: 0)),
+                ]),
+                const SizedBox(height: 14),
+              ]),
+            ),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(children: [
+              for (final t in const [('payments', 'POS transactions'), ('payouts', 'Payouts'), ('terminals', 'Terminals')])
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ChoiceChip(label: Text(t.$2), selected: _tab == t.$1, onSelected: (_) => setState(() => _tab = t.$1)),
+                ),
+            ]),
+          ),
+          const SizedBox(height: 10),
+          _PagedView(
+            key: ValueKey('$_tab${widget.ownerId}'),
+            empty: 'Nothing here yet.',
+            fetch: (page) => api.adminPosList(what, ownerId: widget.ownerId, page: page),
+            rowBuilder: switch (_tab) {
+              'terminals' => _terminalRow,
+              'payouts' => _payoutRow,
+              _ => _paymentRow,
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}

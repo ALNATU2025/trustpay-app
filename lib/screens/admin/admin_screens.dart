@@ -15,6 +15,7 @@ import '../../widgets/common.dart';
 import '../../widgets/flow_widgets.dart';
 import '../../widgets/menu_widgets.dart';
 import '../../widgets/motion.dart';
+import 'admin_money_screens.dart';
 
 String _capitalize(String s) => s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';
 
@@ -75,6 +76,18 @@ class AdminDashboardScreen extends StatelessWidget {
                 title: 'Users',
                 subtitle: 'Search, view and suspend accounts',
                 onTap: () => openScreen(context, const AdminUsersScreen()),
+              ),
+              MenuTile(
+                icon: Icons.receipt_long_outlined,
+                title: 'All transactions',
+                subtitle: 'Every payment, filter and review',
+                onTap: () => openScreen(context, const AdminTransactionsScreen()),
+              ),
+              MenuTile(
+                icon: Icons.storefront_outlined,
+                title: 'Merchants & POS',
+                subtitle: 'Terminals, POS payments and payouts',
+                onTap: () => openScreen(context, const AdminPosScreen()),
               ),
               MenuTile(
                 icon: Icons.fact_check_outlined,
@@ -456,6 +469,16 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                   _changeStatus(u);
                 },
               ),
+            if (u.status != 'pending_kyc') ...[
+              const SizedBox(height: 8),
+              SecondaryButton(
+                label: 'Open profile · funding · transactions',
+                onPressed: () {
+                  Navigator.pop(sheetContext);
+                  openScreen(context, AdminUserDetailScreen(userId: u.id));
+                },
+              ),
+            ],
             const SizedBox(height: 8),
             SecondaryButton(label: 'Close', onPressed: () => Navigator.pop(sheetContext)),
           ],
