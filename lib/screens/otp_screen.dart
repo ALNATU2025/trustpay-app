@@ -26,6 +26,7 @@ class _OtpScreenState extends State<OtpScreen> {
   bool _busy = false;
   String? _error;
   String? _notice;
+  String? _phone;
 
   @override
   void initState() {
@@ -49,6 +50,79 @@ class _OtpScreenState extends State<OtpScreen> {
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
     }
+  }
+
+  Future<void> _changePhone(String current) async {
+    final c = TextEditingController();
+    String? err;
+    bool busy = false;
+    final newPhone = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheet) => StatefulBuilder(
+        builder: (sheet, setSheet) => Padding(
+          padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + MediaQuery.of(sheet).viewInsets.bottom),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Change phone number', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+              const SizedBox(height: 6),
+              Text('Current number: $current. We will send a new code to the number you enter.',
+                  style: const TextStyle(color: TpColors.muted, height: 1.4)),
+              const SizedBox(height: 14),
+              TpField(label: 'New phone number', controller: c, hint: '076 123 456', keyboardType: TextInputType.phone),
+              if (err != null) ...[const SizedBox(height: 10), ErrorBanner(err!)],
+              const SizedBox(height: 14),
+              PrimaryButton(
+                label: 'Send new code',
+                loading: busy,
+                onPressed: busy
+                    ? () {}
+                    : () async {
+                        final v = c.text.trim();
+                        if (v.length < 8) {
+                          setSheet(() => err = 'Enter a valid phone number.');
+                          return;
+                        }
+                        setSheet(() {
+                          busy = true;
+                          err = null;
+                        });
+                        try {
+                          final r = await api.changePhone(v);
+                          appState.setUser(r.user);
+                          appState.devOtp = r.devOtp;
+                          if (sheet.mounted) Navigator.pop(sheet, r.user.phone);
+                        } catch (e) {
+                          setSheet(() {
+                            busy = false;
+                            err = errorMessage(e);
+                          });
+                        }
+                      },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    c.dispose();
+    if (newPhone == null || !mounted) return;
+    setState(() {
+      _phone = newPhone;
+      _seconds = 30;
+      _code = '';
+      _error = null;
+      _notice = 'We sent a new code to $newPhone.';
+    });
+    _beginCountdown();
+  }
+
+  Future<void> _signIn() async {
+    await appState.signOut();
+    if (!mounted) return;
+    Navigator.of(context).pushNamedAndRemoveUntil('/login', (_) => false);
   }
 
   Future<void> _verify() async {
@@ -89,7 +163,7 @@ class _OtpScreenState extends State<OtpScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final phone = (ModalRoute.of(context)?.settings.arguments as String?) ?? appState.user?.phone ?? 'your phone';
+    final phone = _phone ?? appState.user?.phone ?? (ModalRoute.of(context)?.settings.arguments as String?) ?? 'your phone';
     final canResend = _seconds == 0;
 
     return StepScaffold(
@@ -100,9 +174,19 @@ class _OtpScreenState extends State<OtpScreen> {
       primaryLoading: _busy,
       onPrimary: _code.length == _length && !_busy ? _verify : null,
       secondaryLabel: 'Change phone number',
-      onSecondary: () => Navigator.maybePop(context),
+      onSecondary: () => _changePhone(phone),
       child: Column(
         children: [
+          const Center(child: TpLogo(height: 56)),
+          const SizedBox(height: 16),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(22),
+            child: AspectRatio(
+              aspectRatio: 708 / 400,
+              child: Image.asset('assets/images/welcome_hero.jpg', fit: BoxFit.cover, semanticLabel: 'A customer using TrustPay on her phone'),
+            ),
+          ),
+          const SizedBox(height: 16),
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(16),
@@ -160,6 +244,13 @@ class _OtpScreenState extends State<OtpScreen> {
           if (_notice != null && _error == null) ...[const SizedBox(height: 8), InfoBanner(text: _notice!, icon: Icons.check_circle_outline)],
           const SizedBox(height: 8),
           const InfoBanner(text: 'Never share your verification code. TrustPay will never ask for it.'),
+          const SizedBox(height: 4),
+          Center(
+            child: TextButton(
+              onPressed: _signIn,
+              child: const Text('Already have an account? Sign in', style: TextStyle(fontSize: 14, color: TpColors.primary)),
+            ),
+          ),
         ],
       ),
     );

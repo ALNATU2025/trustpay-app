@@ -56,6 +56,12 @@ class TrustPayApi {
   /// Sends a new phone code. Returns the code only on a sandbox server (OTP_DEBUG).
   Future<String?> sendOtp() async => asStrOrNull((await _post('/auth/otp/send', {}))['devOtp']);
 
+  /// Fixes a wrong number before verification; the server sends a new code to it. Returns the sandbox code, if any.
+  Future<({User user, String? devOtp})> changePhone(String phone) async {
+    final j = await _post('/auth/phone/change', {'phone': phone});
+    return (user: User.fromJson(asMap(j['user'])), devOtp: asStrOrNull(j['devOtp']));
+  }
+
   Future<User> verifyOtp(String code) async => User.fromJson(asMap((await _post('/auth/otp/verify', {'code': code}))['user']));
 
   Future<User> submitIdentity({
