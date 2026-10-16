@@ -109,7 +109,7 @@ class _SettlementAccountScreenState extends State<SettlementAccountScreen> {
   void _startLookup() {
     _lookupId++;
     _debounce.cancel();
-    final ready = _account.text.length == 10 && _bank.isNotEmpty;
+    final ready = _account.text.length >= 6 && _bank.isNotEmpty;
     setState(() {
       _verifiedName = null;
       _notFound = false;
@@ -226,12 +226,12 @@ class _SettlementAccountScreenState extends State<SettlementAccountScreen> {
             TpField(
               label: 'Account number',
               controller: _account,
-              hint: '10-digit account number',
+              hint: 'Account number (up to 18 digits)',
               keyboardType: TextInputType.number,
               digitsOnly: true,
-              maxLength: 10,
+              maxLength: 18,
               onChanged: (_) => _startLookup(),
-              validator: (v) => (v == null || v.length != 10) ? 'Enter all 10 digits' : null,
+              validator: (v) => (v == null || v.length < 6) ? 'Enter a valid account number (6 to 18 digits)' : null,
             ),
             const SizedBox(height: 10),
             if (_verifiedName != null)
