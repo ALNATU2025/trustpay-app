@@ -74,7 +74,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
       await appState.signIn(result);
       if (!mounted) return;
       appState.devOtp = result.devOtp;
-      Navigator.pushNamed(context, '/otp', arguments: result.user.phone);
+      final next = AppState.routeFor(result.user);
+      Navigator.pushNamed(context, next.route, arguments: next.arguments);
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
     } finally {
