@@ -144,7 +144,7 @@ class _ResetCodeScreenState extends State<ResetCodeScreen> {
       eyebrow: 'RESET PASSWORD',
       counter: '02 / 04',
       title: 'Enter the code',
-      subtitle: 'If an account matches ${widget.contact}, we sent it a 6-digit code.',
+      subtitle: 'If an account matches ${widget.contact}, we sent a 6-digit code to its WhatsApp.',
       primaryLabel: 'Verify code',
       primaryLoading: _busy,
       onPrimary: _code.length == 6 && !_busy ? _verify : null,

@@ -121,7 +121,7 @@ class _OtpScreenState extends State<OtpScreen> {
                 ),
                 SizedBox(height: 6),
                 Text(
-                  'This helps us confirm that this number belongs to you.',
+                  'We will send a 6-digit code to your WhatsApp to confirm this number belongs to you.',
                   style: TextStyle(fontSize: 14, height: 1.4, color: TpColors.muted),
                 ),
               ],
