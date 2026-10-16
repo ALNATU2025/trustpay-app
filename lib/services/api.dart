@@ -66,6 +66,7 @@ class ApiClient {
 
   final http.Client _http;
   String? _token;
+  String? _deviceId;
 
   /// Set for the next request only: the customer confirmed a payment that looked like a duplicate.
   bool confirmDuplicateNext = false;
@@ -87,6 +88,13 @@ class ApiClient {
     try {
       final prefs = await SharedPreferences.getInstance();
       _token = prefs.getString(_tokenKey);
+      var id = prefs.getString('tp_device');
+      if (id == null || id.isEmpty) {
+        final r = math.Random.secure();
+        id = List.generate(24, (_) => r.nextInt(16).toRadixString(16)).join();
+        await prefs.setString('tp_device', id);
+      }
+      _deviceId = id;
     } catch (_) {
       // Storage can be unavailable. The session then lasts until the app closes.
     }
@@ -182,6 +190,7 @@ class ApiClient {
       headers['Authorization'] = 'Bearer $_token';
     }
     if (idempotencyKey != null) headers['Idempotency-Key'] = idempotencyKey;
+    if (_deviceId != null) headers['X-Device-Id'] = _deviceId!;
     if (confirmDuplicateNext) {
       headers['X-Confirm-Duplicate'] = '1';
       confirmDuplicateNext = false;

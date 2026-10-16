@@ -90,6 +90,18 @@ class AdminDashboardScreen extends StatelessWidget {
                 onTap: () => openScreen(context, const AdminPosScreen()),
               ),
               MenuTile(
+                icon: Icons.bar_chart_outlined,
+                title: 'Reports',
+                subtitle: 'Totals, fees, services, tiers, CSV export',
+                onTap: () => openScreen(context, const AdminReportsScreen()),
+              ),
+              MenuTile(
+                icon: Icons.support_agent_outlined,
+                title: 'Agents',
+                subtitle: 'Cash in / cash out agents and pricing',
+                onTap: () => openScreen(context, const AdminAgentsScreen()),
+              ),
+              MenuTile(
                 icon: Icons.campaign_outlined,
                 title: 'Notifications',
                 subtitle: 'Send updates and choose your alerts',

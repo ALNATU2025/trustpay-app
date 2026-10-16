@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../models/models.dart';
+import '../../services/documents.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/format.dart';
 import '../../utils/nav.dart';
@@ -23,8 +24,14 @@ class ReceiptScreen extends StatelessWidget {
       subtitle: data.statusLine,
       headerLabel: 'Done',
       onHeaderAction: () => goHome(context),
-      primaryLabel: 'Copy receipt',
-      onPrimary: () => copyText(context, data.toPlainText(), 'Receipt copied.'),
+      primaryLabel: 'Share receipt (PDF)',
+      onPrimary: () async {
+        try {
+          await shareReceipt(data);
+        } catch (_) {
+          if (context.mounted) showMessage(context, 'Could not create the PDF. You can copy the receipt instead.');
+        }
+      },
       secondaryLabel: 'Back to home',
       onSecondary: () => goHome(context),
       child: Column(
@@ -38,7 +45,15 @@ class ReceiptScreen extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           DetailsCard(rows: data.rows),
-          const SizedBox(height: 12),
+          const SizedBox(height: 4),
+          Center(
+            child: TextButton.icon(
+              onPressed: () => copyText(context, data.toPlainText(), 'Receipt copied.'),
+              icon: const Icon(Icons.copy_outlined, size: 18),
+              label: const Text('Copy as text'),
+            ),
+          ),
+          const SizedBox(height: 4),
           Center(
             child: TextButton(
               onPressed: () => openScreen(context, const SupportScreen()),

@@ -15,6 +15,7 @@ import '../../widgets/flow_widgets.dart';
 import '../../widgets/menu_widgets.dart';
 import '../support/support_screen.dart';
 import 'notification_center_screen.dart';
+import 'security_extra_screens.dart';
 
 Widget _errorBanner(String message) => InfoBanner(
       icon: Icons.error_outline,
@@ -272,6 +273,30 @@ class _SecurityScreenState extends State<SecurityScreen> {
                 title: 'Change transaction PIN',
                 subtitle: '4 digits',
                 onTap: () => _change(context, _Secret.pin),
+              ),
+              MenuTile(
+                icon: Icons.lock_reset,
+                title: 'Forgot my PIN',
+                subtitle: 'Set a new PIN with your password',
+                onTap: () => showResetPinSheet(context),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          MenuGroup(
+            label: 'DEVICES & ACTIVITY',
+            children: [
+              MenuTile(
+                icon: Icons.history,
+                title: 'Account activity',
+                subtitle: 'Recent sign-ins and security changes',
+                onTap: () => openScreen(context, const SecurityActivityScreen()),
+              ),
+              MenuTile(
+                icon: Icons.phonelink_erase_outlined,
+                title: 'Sign out of all devices',
+                subtitle: 'Use this if you lost your phone',
+                onTap: () => confirmRevokeSessions(context),
               ),
             ],
           ),

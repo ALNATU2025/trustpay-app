@@ -491,6 +491,106 @@ class TrustPayApi {
 
   Future<List<Map<String, dynamic>>> adminNotificationHistory() async => asMapList((await _get('/admin/notifications'))['items']);
 
+  // -------------------------------------------------- statements & security
+
+  Future<Map<String, dynamic>> statement({DateTime? from, DateTime? to}) async => _get('/statement', query: {
+        if (from != null) 'from': from.toIso8601String().substring(0, 10),
+        if (to != null) 'to': to.toIso8601String().substring(0, 10),
+      });
+
+  Future<Map<String, dynamic>> statementCsv({DateTime? from, DateTime? to}) async => _get('/statement', query: {
+        'format': 'csv',
+        if (from != null) 'from': from.toIso8601String().substring(0, 10),
+        if (to != null) 'to': to.toIso8601String().substring(0, 10),
+      });
+
+  Future<Map<String, dynamic>> securityOverview() async => _get('/me/security');
+
+  Future<void> resetPin({required String password, required String newPin}) async {
+    await _post('/me/pin/reset', {'password': password, 'newPin': newPin});
+  }
+
+  /// Signs out every other device. The server returns a fresh token for this one.
+  Future<String> revokeAllSessions(String password) async =>
+      asStr((await _post('/me/sessions/revoke-all', {'password': password}))['token']);
+
+  // ------------------------------------------------------------ requests
+
+  Future<Map<String, dynamic>> createRequest({required double amount, String note = '', String? phone, String? accountNumber}) async =>
+      asMap((await _post('/requests', {
+        'amount': amount,
+        if (note.isNotEmpty) 'note': note,
+        if (phone != null && phone.isNotEmpty) 'phone': phone,
+        if (accountNumber != null && accountNumber.isNotEmpty) 'accountNumber': accountNumber,
+      }))['request']);
+
+  Future<List<Map<String, dynamic>>> requests(String box) async => asMapList((await _get('/requests', query: {'box': box}))['items']);
+
+  Future<Map<String, dynamic>?> requestByCode(String code) async =>
+      _lookup(() async => asMap((await _get('/requests/code/${Uri.encodeComponent(code.trim().toUpperCase())}'))['request']));
+
+  Future<PaymentResult> payRequest({required String id, required String pin, required String idempotencyKey}) =>
+      _pay('/requests/$id/pay', {'pin': pin}, idempotencyKey);
+
+  Future<void> declineRequest(String id) async {
+    await _post('/requests/$id/decline', {});
+  }
+
+  Future<void> cancelRequest(String id) async {
+    await _post('/requests/$id/cancel', {});
+  }
+
+  // -------------------------------------------------------------- agents
+
+  Future<Map<String, dynamic>> agentMe() async => _get('/agents/me');
+
+  Future<Map<String, dynamic>> agentFees() async => _get('/agents/fees');
+
+  Future<Map<String, dynamic>?> agentLookup(String code, {double? amount}) async =>
+      _lookup(() => _get('/agents/lookup', query: {'code': code, if (amount != null) 'amount': amount}));
+
+  Future<Map<String, dynamic>?> agentCustomer({String? phone, String? accountNumber}) async => _lookup(() async =>
+      asMap((await _get('/agents/customer', query: {
+        if (phone != null && phone.isNotEmpty) 'phone': phone,
+        if (accountNumber != null && accountNumber.isNotEmpty) 'accountNumber': accountNumber,
+      }))['customer']));
+
+  Future<PaymentResult> agentCashOut({required String code, required double amount, required String pin, required String idempotencyKey}) =>
+      _pay('/agents/cash-out', {'code': code, 'amount': amount, 'pin': pin}, idempotencyKey);
+
+  Future<PaymentResult> agentCashIn({String? phone, String? accountNumber, required double amount, required String pin, required String idempotencyKey}) =>
+      _pay('/agents/cash-in', {
+        if (phone != null && phone.isNotEmpty) 'phone': phone,
+        if (accountNumber != null && accountNumber.isNotEmpty) 'accountNumber': accountNumber,
+        'amount': amount,
+        'pin': pin,
+      }, idempotencyKey);
+
+  Future<Map<String, dynamic>> adminAgents() async => _get('/admin/agents');
+
+  Future<void> adminSetAgent(String userId, bool enabled) async {
+    await _post('/admin/users/$userId/agent', {'enabled': enabled});
+  }
+
+  Future<Map<String, dynamic>> adminSetAgentFees({double? cashOutPercent, double? minFee, double? agentSharePercent}) async =>
+      asMap(await _c.patch('/admin/agent-fees', body: {
+        if (cashOutPercent != null) 'cashOutPercent': cashOutPercent,
+        if (minFee != null) 'minFee': minFee,
+        if (agentSharePercent != null) 'agentSharePercent': agentSharePercent,
+      }));
+
+  // ------------------------------------------------------------- reports
+
+  Future<Map<String, dynamic>> adminReport({DateTime? from, DateTime? to}) async => _get('/admin/reports/summary', query: {
+        if (from != null) 'from': from.toIso8601String().substring(0, 10),
+        if (to != null) 'to': to.toIso8601String().substring(0, 10),
+      });
+
+  Future<Map<String, dynamic>> adminReportCsv({DateTime? from, DateTime? to}) async => _get('/admin/reports/export', query: {
+        if (from != null) 'from': from.toIso8601String().substring(0, 10),
+        if (to != null) 'to': to.toIso8601String().substring(0, 10),
+      });
+
   // ------------------------------------------------------------------- tiers
 
   Future<Map<String, dynamic>> tierInfo() async => _get('/me/tier');

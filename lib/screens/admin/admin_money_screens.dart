@@ -14,6 +14,7 @@ import '../../widgets/api_builder.dart';
 import '../../widgets/common.dart';
 import '../../widgets/flow_widgets.dart';
 import '../../widgets/menu_widgets.dart';
+import '../flows/generic_flow.dart';
 
 typedef _Json = Map<String, dynamic>;
 
@@ -489,6 +490,18 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
                 PrimaryButton(label: 'Credit or debit balance', onPressed: () => _adjust(u)),
                 const SizedBox(height: 8),
                 SecondaryButton(label: 'Change tier (${asStr(u['tier'])})', onPressed: () => _changeTier(u)),
+                const SizedBox(height: 8),
+                SecondaryButton(
+                  label: u['isAgent'] == true ? 'Remove agent (code ${asStr(u['agentCode'])})' : 'Make agent',
+                  onPressed: () async {
+                    try {
+                      await api.adminSetAgent(widget.userId, u['isAgent'] != true);
+                      if (mounted) setState(() => _gen++);
+                    } catch (e) {
+                      if (mounted) showMessage(context, errorMessage(e));
+                    }
+                  },
+                ),
                 const SizedBox(height: 8),
                 SecondaryButton(
                   label: 'Send notification',
@@ -1199,4 +1212,255 @@ class _PrefsCardState extends State<_PrefsCard> {
             onChanged: (v) => _set(e.key, v),
           ),
       ]);
+}
+
+// --------------------------------------------------------------------- reports
+
+/// Admin reports: totals, daily trend, services, tiers and top customers for a period. CSV export of every transaction.
+class AdminReportsScreen extends StatefulWidget {
+  const AdminReportsScreen({super.key});
+
+  @override
+  State<AdminReportsScreen> createState() => _AdminReportsScreenState();
+}
+
+class _AdminReportsScreenState extends State<AdminReportsScreen> {
+  String _preset = '7';
+  int _gen = 0;
+
+  (DateTime, DateTime) get _range {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    return switch (_preset) {
+      'today' => (today, today),
+      'month' => (DateTime(now.year, now.month, 1), today),
+      '30' => (today.subtract(const Duration(days: 29)), today),
+      '90' => (today.subtract(const Duration(days: 89)), today),
+      _ => (today.subtract(const Duration(days: 6)), today),
+    };
+  }
+
+  Future<void> _export() async {
+    final (from, to) = _range;
+    try {
+      final r = await api.adminReportCsv(from: from, to: to);
+      if (!mounted) return;
+      await copyText(context, asStr(r['csv']), 'Copied ${asInt(r['count'])} transactions. Paste into a spreadsheet.');
+      if (mounted && r['truncated'] == true) showMessage(context, 'Only the first 20,000 rows were copied. Pick a shorter period.');
+    } catch (e) {
+      if (mounted) showMessage(context, errorMessage(e));
+    }
+  }
+
+  Widget _chip(String label, String key) => Padding(
+        padding: const EdgeInsets.only(right: 8),
+        child: ChoiceChip(label: Text(label), selected: _preset == key, onSelected: (_) => setState(() {
+              _preset = key;
+              _gen++;
+            })),
+      );
+
+  Widget _tile(String label, String value) => Expanded(
+        child: Container(
+          margin: const EdgeInsets.all(4),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(label, style: const TextStyle(fontSize: 12, color: TpColors.muted)),
+            const SizedBox(height: 4),
+            Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+          ]),
+        ),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final (from, to) = _range;
+    return PlainScaffold(
+      title: 'Reports',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(children: [_chip('Today', 'today'), _chip('7 days', '7'), _chip('30 days', '30'), _chip('This month', 'month'), _chip('90 days', '90')]),
+          ),
+          const SizedBox(height: 12),
+          ApiBuilder<_Json>(
+            key: ValueKey('$_preset$_gen'),
+            load: () => api.adminReport(from: from, to: to),
+            builder: (context, d, reload) {
+              final t = asMap(d['totals']);
+              final daily = asMapList(d['daily']);
+              final maxOut = daily.fold<double>(1, (m, r) => asDouble(r['moneyOut']) > m ? asDouble(r['moneyOut']) : m);
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(children: [_tile('Money out', formatLeone(asDouble(t['moneyOut']))), _tile('Money in (top-ups)', formatLeone(asDouble(t['funding'])))]),
+                  Row(children: [_tile('Fees earned', formatLeone(asDouble(t['fees']))), _tile('Transactions', '${asInt(t['transactions'])}')]),
+                  Row(children: [_tile('New customers', '${asInt(t['newUsers'])}'), _tile('Active customers', '${asInt(t['activeUsers'])}')]),
+                  Row(children: [_tile('Failed', '${asInt(t['failed'])}'), _tile('Pending', '${asInt(t['pending'])}')]),
+                  Row(children: [_tile('Total in wallets now', formatLeone(asDouble(t['walletBalances']))), const Expanded(child: SizedBox())]),
+                  const SizedBox(height: 18),
+                  const Text('DAILY MONEY OUT', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 0.8, color: TpColors.muted)),
+                  const SizedBox(height: 8),
+                  if (daily.isEmpty)
+                    const Text('No transactions in this period.', style: TextStyle(color: TpColors.muted))
+                  else
+                    WhiteCard(
+                      child: Column(children: [
+                        for (final r in daily.reversed.take(31))
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 3),
+                            child: Row(children: [
+                              SizedBox(width: 78, child: Text(asStr(r['date']).substring(5), style: const TextStyle(fontSize: 12, color: TpColors.muted))),
+                              Expanded(
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(4),
+                                  child: LinearProgressIndicator(value: asDouble(r['moneyOut']) / maxOut, minHeight: 10, backgroundColor: const Color(0xFFEEF2FB), color: TpColors.primary),
+                                ),
+                              ),
+                              SizedBox(width: 96, child: Text(formatLeone(asDouble(r['moneyOut'])), textAlign: TextAlign.right, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700))),
+                            ]),
+                          ),
+                      ]),
+                    ),
+                  const SizedBox(height: 18),
+                  const Text('BY SERVICE', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 0.8, color: TpColors.muted)),
+                  const SizedBox(height: 8),
+                  MenuGroup(children: [
+                    for (final k in asMapList(d['byKind']))
+                      ListTile(
+                        title: Text(_capitalize(asStr(k['kind']).replaceAll('_', ' ')), style: const TextStyle(fontWeight: FontWeight.w700)),
+                        subtitle: Text('${asInt(k['count'])} payments · fees ${formatLeone(asDouble(k['fees']))}'),
+                        trailing: Text(formatLeone(asDouble(k['volume'])), style: const TextStyle(fontWeight: FontWeight.w800)),
+                      ),
+                  ]),
+                  const SizedBox(height: 18),
+                  const Text('TIERS', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 0.8, color: TpColors.muted)),
+                  const SizedBox(height: 8),
+                  MenuGroup(children: [
+                    for (final k in asMapList(d['tiers']))
+                      ListTile(
+                        title: Text(asStr(k['tier']), style: const TextStyle(fontWeight: FontWeight.w700)),
+                        subtitle: Text('${asInt(k['users'])} customers'),
+                        trailing: Text(formatLeone(asDouble(k['balance'])), style: const TextStyle(fontWeight: FontWeight.w800)),
+                      ),
+                  ]),
+                  const SizedBox(height: 18),
+                  const Text('TOP CUSTOMERS', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 0.8, color: TpColors.muted)),
+                  const SizedBox(height: 8),
+                  MenuGroup(children: [
+                    for (final k in asMapList(d['topUsers']))
+                      ListTile(
+                        title: Text(asStr(k['name']), style: const TextStyle(fontWeight: FontWeight.w700)),
+                        subtitle: Text('${asInt(k['count'])} payments'),
+                        trailing: Text(formatLeone(asDouble(k['volume'])), style: const TextStyle(fontWeight: FontWeight.w800)),
+                        onTap: () => openScreen(context, AdminUserDetailScreen(userId: asStr(k['id']))),
+                      ),
+                  ]),
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 18),
+          SecondaryButton(label: 'Copy all transactions as CSV', onPressed: appState.me.isAdmin ? _export : null),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------- agents
+
+/// Admin: who the agents are, their float and today's work, and what a cash-out costs.
+class AdminAgentsScreen extends StatefulWidget {
+  const AdminAgentsScreen({super.key});
+
+  @override
+  State<AdminAgentsScreen> createState() => _AdminAgentsScreenState();
+}
+
+class _AdminAgentsScreenState extends State<AdminAgentsScreen> {
+  int _gen = 0;
+
+  Future<void> _editFees(_Json fees) async {
+    final pct = TextEditingController(text: '${asDouble(fees['cashOutPercent'])}');
+    final min = TextEditingController(text: '${asDouble(fees['minFee'])}');
+    final share = TextEditingController(text: '${asDouble(fees['agentSharePercent'])}');
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (d) => AlertDialog(
+        title: const Text('Cash-out pricing'),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          TpField(label: 'Fee % charged to the customer', controller: pct, allowDecimal: true, keyboardType: const TextInputType.numberWithOptions(decimal: true)),
+          const SizedBox(height: 10),
+          TpField(label: 'Minimum fee (Le)', controller: min, allowDecimal: true, keyboardType: const TextInputType.numberWithOptions(decimal: true)),
+          const SizedBox(height: 10),
+          TpField(label: 'Agent keeps % of the fee', controller: share, allowDecimal: true, keyboardType: const TextInputType.numberWithOptions(decimal: true)),
+        ]),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(d, true), child: const Text('Save')),
+        ],
+      ),
+    );
+    final p = double.tryParse(pct.text), m = double.tryParse(min.text), s = double.tryParse(share.text);
+    pct.dispose();
+    min.dispose();
+    share.dispose();
+    if (ok != true || !mounted) return;
+    try {
+      await api.adminSetAgentFees(cashOutPercent: p, minFee: m, agentSharePercent: s);
+      if (mounted) setState(() => _gen++);
+    } catch (e) {
+      if (mounted) showMessage(context, errorMessage(e));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PlainScaffold(
+      title: 'Agents',
+      child: ApiBuilder<_Json>(
+        key: ValueKey(_gen),
+        load: api.adminAgents,
+        builder: (context, d, reload) {
+          final fees = asMap(d['fees']);
+          final items = asMapList(d['items']);
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              WhiteCard(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const Text('Cash-out pricing', style: TextStyle(fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 6),
+                  Text('Customer pays ${asDouble(fees['cashOutPercent'])}% (min ${formatLeone(asDouble(fees['minFee']))}). Agent keeps ${asDouble(fees['agentSharePercent'])}% of that fee. Cash in is free for customers.',
+                      style: const TextStyle(color: TpColors.muted, height: 1.4)),
+                  if (appState.me.isAdmin) TextButton(onPressed: () => _editFees(fees), child: const Text('Change pricing')),
+                ]),
+              ),
+              const SizedBox(height: 14),
+              const InfoBanner(text: 'To add an agent, open the customer in Users and tap "Make agent". Set them to Tier 3 so tier limits do not block their float.'),
+              const SizedBox(height: 14),
+              if (items.isEmpty)
+                const Text('No agents yet.', style: TextStyle(color: TpColors.muted))
+              else
+                MenuGroup(children: [
+                  for (final a in items)
+                    ListTile(
+                      key: ValueKey(asStr(a['id'])),
+                      title: Text('${asStr(a['name'])} · ${asStr(a['code'])}', style: const TextStyle(fontWeight: FontWeight.w700)),
+                      subtitle: Text('${asStr(a['phone'])} · ${asStr(a['tier'])}\nToday: in ${formatLeone(asDouble(a['todayCashIn']))}, out ${formatLeone(asDouble(a['todayCashOut']))}'),
+                      isThreeLine: true,
+                      trailing: Text(formatLeone(asDouble(a['float'])), style: const TextStyle(fontWeight: FontWeight.w800)),
+                      onTap: () => openScreen(context, AdminUserDetailScreen(userId: asStr(a['id']))),
+                    ),
+                ]),
+            ],
+          );
+        },
+      ),
+    );
+  }
 }

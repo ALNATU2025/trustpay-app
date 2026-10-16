@@ -14,6 +14,7 @@ import '../admin/admin_screens.dart';
 import '../flows/flows.dart';
 import '../support/support_screen.dart';
 import 'account_screens.dart';
+import 'statement_screen.dart';
 import 'tier_screens.dart';
 
 /// The Account tab: profile card and a grouped menu.
@@ -94,6 +95,28 @@ class ProfileTab extends StatelessWidget {
                 subtitle: 'History and receipts',
                 onTap: () => openScreen(context, const TransactionHistoryScreen()),
               ),
+              MenuTile(
+                icon: Icons.description_outlined,
+                title: 'Statements',
+                tone: TpTone.teal,
+                subtitle: 'Download a PDF for any period',
+                onTap: () => openScreen(context, const StatementScreen()),
+              ),
+              MenuTile(
+                icon: Icons.request_page_outlined,
+                title: 'Money requests',
+                tone: TpTone.amber,
+                subtitle: 'Ask for money or share a payment link',
+                onTap: () => openScreen(context, const RequestHubScreen()),
+              ),
+              if (appState.me.isAgent)
+                MenuTile(
+                  icon: Icons.support_agent_outlined,
+                  title: 'Agent',
+                  tone: TpTone.purple,
+                  subtitle: 'Cash in, cash out and your float',
+                  onTap: () => openScreen(context, const AgentHomeScreen()),
+                ),
               MenuTile(
                 icon: Icons.desktop_windows_outlined,
                 title: 'POS services',

@@ -65,6 +65,8 @@ class User {
     required this.balance,
     this.kycStatus = '',
     this.kycReason = '',
+    this.isAgent = false,
+    this.agentCode = '',
   });
 
   factory User.fromJson(Map<String, dynamic> j) {
@@ -89,8 +91,14 @@ class User {
       balance: asDouble(j['balance']),
       kycStatus: asStr(j['kycStatus']),
       kycReason: asStr(j['kycReason']),
+      isAgent: asBool(j['isAgent']),
+      agentCode: asStr(j['agentCode']),
     );
   }
+
+  /// Cash-in / cash-out agent switched on by an admin.
+  final bool isAgent;
+  final String agentCode;
 
   /// Identity review: `pending`, `approved` or `rejected` (empty when the server does not say).
   final String kycStatus;
@@ -145,6 +153,8 @@ class User {
         balance: balance ?? this.balance,
         kycStatus: kycStatus,
         kycReason: kycReason,
+        isAgent: isAgent,
+        agentCode: agentCode,
       );
 }
 

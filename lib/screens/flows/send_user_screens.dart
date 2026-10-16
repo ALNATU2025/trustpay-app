@@ -13,7 +13,9 @@ import '../../widgets/common.dart';
 import '../../widgets/menu_widgets.dart';
 import '../../widgets/step_scaffold.dart';
 import 'generic_flow.dart';
+import 'agent_screens.dart';
 import 'mobile_money_screens.dart';
+import 'request_screens.dart';
 import 'transfer_screens.dart';
 
 /// Bottom sheet that asks where the money is going.
@@ -49,6 +51,24 @@ void showSendOptions(BuildContext context) {
               onTap: () {
                 Navigator.pop(sheetContext);
                 openScreen(context, const PayMerchantScreen());
+              },
+            ),
+            MenuTile(
+              icon: Icons.payments_outlined,
+              title: 'Cash out at an agent',
+              subtitle: 'Get cash from a TrustPay agent',
+              onTap: () {
+                Navigator.pop(sheetContext);
+                openScreen(context, const CashOutScreen());
+              },
+            ),
+            MenuTile(
+              icon: Icons.request_page_outlined,
+              title: 'Request money',
+              subtitle: 'Ask someone to pay you or share a link',
+              onTap: () {
+                Navigator.pop(sheetContext);
+                openScreen(context, const RequestHubScreen());
               },
             ),
             MenuTile(
